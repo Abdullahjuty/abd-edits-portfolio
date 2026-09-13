@@ -15,6 +15,39 @@ async function api(path, options = {}) {
   return data;
 }
 
+// fetch() can't report upload progress, so file uploads use XHR instead —
+// this is what lets the admin panel show a real "42% uploaded" bar instead
+// of just a stuck "Uploading…" with no feedback until it either finishes
+// or silently fails.
+function uploadWithProgress(path, formData, onProgress) {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open("POST", path);
+    xhr.withCredentials = true;
+    xhr.upload.addEventListener("progress", (e) => {
+      if (e.lengthComputable && onProgress) {
+        onProgress(Math.round((e.loaded / e.total) * 100));
+      }
+    });
+    xhr.addEventListener("load", () => {
+      let data = {};
+      try {
+        data = JSON.parse(xhr.responseText);
+      } catch {
+        // non-JSON response falls through to the status-code check below
+      }
+      if (xhr.status >= 200 && xhr.status < 300) {
+        resolve(data);
+      } else {
+        reject(new Error(data.error || `Upload failed (HTTP ${xhr.status})`));
+      }
+    });
+    xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
+    xhr.addEventListener("abort", () => reject(new Error("Upload cancelled")));
+    xhr.send(formData);
+  });
+}
+
 async function checkAuth() {
   const data = await api("/api/admin/me");
   if (data.authenticated) {
@@ -60,14 +93,20 @@ const clipList = document.getElementById("clip-list");
 
 clipForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  clipStatus.textContent = "Uploading…";
+  const submitBtn = clipForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  clipStatus.textContent = "Uploading… 0%";
   try {
-    await api("/api/admin/clips", { method: "POST", body: new FormData(clipForm) });
-    clipStatus.textContent = "Uploaded.";
+    await uploadWithProgress("/api/admin/clips", new FormData(clipForm), (pct) => {
+      clipStatus.textContent = `Uploading… ${pct}%`;
+    });
+    clipStatus.textContent = "✅ Uploaded successfully.";
     clipForm.reset();
     loadDashboard();
   } catch (err) {
-    clipStatus.textContent = `Error: ${err.message}`;
+    clipStatus.textContent = `❌ Upload failed: ${err.message}`;
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 
@@ -179,13 +218,19 @@ const heroStatus = document.getElementById("hero-status");
 
 heroForm.addEventListener("submit", async (e) => {
   e.preventDefault();
-  heroStatus.textContent = "Saving…";
+  const submitBtn = heroForm.querySelector('button[type="submit"]');
+  submitBtn.disabled = true;
+  heroStatus.textContent = "Uploading… 0%";
   try {
-    await api("/api/admin/hero", { method: "POST", body: new FormData(heroForm) });
-    heroStatus.textContent = "Saved.";
+    await uploadWithProgress("/api/admin/hero", new FormData(heroForm), (pct) => {
+      heroStatus.textContent = `Uploading… ${pct}%`;
+    });
+    heroStatus.textContent = "✅ Saved successfully.";
     heroForm.reset();
   } catch (err) {
-    heroStatus.textContent = `Error: ${err.message}`;
+    heroStatus.textContent = `❌ Save failed: ${err.message}`;
+  } finally {
+    submitBtn.disabled = false;
   }
 });
 

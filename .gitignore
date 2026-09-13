@@ -5,3 +5,4 @@ server/uploads/images/*
 !server/uploads/images/.gitkeep
 server/data/admin.json
 .env
+*firebase-adminsdk*.json

@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ABD // Video Editor — Cuts Built To Win</title>
+    <meta
+      name="description"
+      content="ABD video editing portfolio. Cinematic ads, YouTube, and reels that convert. Watch the VSL, see the work, pick a package."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="css/styles.css" />
+  </head>
+  <body>
+    <div class="noise"></div>
+    <div class="speed-lines" aria-hidden="true">
+      <span></span><span></span><span></span>
+    </div>
+
+    <header class="nav">
+      <div class="nav-inner">
+        <a class="logo" href="#home">
+          <span class="logo-mark">A</span>
+          ABD EDITS
+        </a>
+        <nav>
+          <ul class="nav-links">
+            <li><a href="#home">Start</a></li>
+            <li><a href="#work">Work</a></li>
+            <li><a href="#proof">Proof</a></li>
+            <li><a href="#pricing">Pricing</a></li>
+            <li><a href="#contact">Contact</a></li>
+          </ul>
+        </nav>
+        <a class="btn" href="#contact">Book a cut</a>
+        <button class="menu-toggle" aria-label="Open menu"><span></span></button>
+      </div>
+    </header>
+
+    <section class="hero" id="home">
+      <div class="stripe" aria-hidden="true"></div>
+      <div class="checkered" aria-hidden="true"></div>
+      <div class="wrap hero-grid">
+        <div>
+          <p class="eyebrow kicker" id="hero-eyebrow">Video editor · ads · youtube · reels</p>
+          <h1 class="display">
+            <span id="hero-headline1">Your footage is the engine.</span>
+            <span id="hero-headline2">I make it finish first.</span>
+          </h1>
+          <div class="vp">
+            <p id="hero-value-prop">Cinematic ads, YouTube, and reels that convert in the first 3 seconds.</p>
+          </div>
+          <div class="hero-actions">
+            <a class="btn" href="#vsl">Watch the VSL</a>
+            <a class="btn btn-ghost" href="#work">See the garage</a>
+          </div>
+          <div class="stats" id="hero-stats">
+            <div class="stat"><b>48h</b><span>Avg. turnaround</span></div>
+            <div class="stat"><b>3s</b><span>Hook-first edits</span></div>
+            <div class="stat"><b>100%</b><span>Frame control</span></div>
+          </div>
+        </div>
+
+        <div class="vsl" id="vsl">
+          <div class="vsl-frame">
+            <video id="vsl-video" preload="metadata"></video>
+            <button class="play-vsl" type="button" aria-label="Play VSL">
+              <span class="play-core" aria-hidden="true">
+                <svg width="28" height="28" viewBox="0 0 24 24" fill="currentColor">
+                  <path d="M8 5v14l13-7z" />
+                </svg>
+              </span>
+            </button>
+          </div>
+          <div class="vsl-meta">
+            <span class="lap">LAP 01 · VIDEO SALES LETTER</span>
+            <span>SOUND ON</span>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="section work" id="work">
+      <div class="wrap section-head">
+        <div>
+          <p class="eyebrow">The garage</p>
+          <h2 class="display">Work in motion</h2>
+        </div>
+        <p>Three lanes. One finish line.</p>
+      </div>
+
+      <div class="marquee-wrap" aria-label="Featured video edits moving in three rows">
+        <div class="row row-rtl" id="row-rtl"></div>
+        <div class="row row-ltr" id="row-ltr"></div>
+        <div class="row row-rtl slow" id="row-rtl-slow"></div>
+      </div>
+    </section>
+
+    <section class="section testimonials" id="proof">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Podium</p>
+            <h2 class="display">Few voices. Loud proof.</h2>
+          </div>
+          <p>Short list on purpose. These are the clients who came back for another lap.</p>
+        </div>
+
+        <div class="podium" id="podium"></div>
+        <p class="note">Got a win we can put on the wall? Send the quote with your cut — the next podium spot is open.</p>
+      </div>
+    </section>
+
+    <section class="section" id="pricing">
+      <div class="wrap">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Grid</p>
+            <h2 class="display">Pick your race</h2>
+          </div>
+          <p>Fixed packages so you know the budget before the first cut. Custom builds on request.</p>
+        </div>
+
+        <div class="pricing-grid" id="pricing-grid"></div>
+      </div>
+    </section>
+
+    <section class="section contact" id="contact">
+      <div class="wrap">
+        <div class="contact-panel">
+          <div>
+            <p class="eyebrow">Radio</p>
+            <h2 class="display">Get on the grid</h2>
+            <p style="margin: 16px 0 22px; max-width: 42ch; color: var(--muted); font-size: 1.15rem">
+              Send the footage, the deadline, and the feeling you want. I'll come back with a plan — not a vague "let's hop on a call."
+            </p>
+            <a class="btn" href="mailto:hello@abdedits.com">Email the brief</a>
+          </div>
+          <div class="socials">
+            <a class="social" href="https://facebook.com/" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M14 9h3V6h-3c-2.2 0-4 1.8-4 4v2H8v3h2v7h3v-7h3l1-3h-4V10c0-.6.4-1 1-1z"/></svg>
+              <span>Facebook</span>
+            </a>
+            <a class="social" href="https://instagram.com/" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M7 3h10a4 4 0 0 1 4 4v10a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4V7a4 4 0 0 1 4-4zm5 5.2A3.8 3.8 0 1 0 15.8 12 3.8 3.8 0 0 0 12 8.2zm6.1-.9a1 1 0 1 0 1 1 1 1 0 0 0-1-1zM12 9.5A2.5 2.5 0 1 1 9.5 12 2.5 2.5 0 0 1 12 9.5z"/></svg>
+              <span>Instagram</span>
+            </a>
+            <a class="social" href="https://wa.me/920000000000" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M12.04 3A8.94 8.94 0 0 0 3 11.9a8.86 8.86 0 0 0 1.3 4.6L3 21l4.64-1.22A9 9 0 1 0 12.04 3zm5.27 12.73c-.22.62-1.28 1.14-1.78 1.18-.46.04-1.04.06-1.68-.1a14.7 14.7 0 0 1-1.45-.54 11.16 11.16 0 0 1-3.86-3.4 5.3 5.3 0 0 1-1.1-2.78c-.12-.94.3-1.74.8-2.1.22-.16.58-.26.92-.24.1 0 .22 0 .32.01.28.02.42.03.6.47.22.54.74 1.86.8 2 .06.14.1.3.02.48-.08.16-.12.26-.24.4s-.25.3-.36.42c-.12.12-.24.26-.1.5a8.3 8.3 0 0 0 1.52 1.9 7.5 7.5 0 0 0 2.02 1.24c.24.1.38.08.52-.08.14-.16.6-.7.76-.94s.32-.2.54-.12 1.4.66 1.64.78.4.18.46.28c.06.1.06.62-.16 1.24z"/></svg>
+              <span>WhatsApp</span>
+            </a>
+            <a class="social" href="mailto:hello@abdedits.com">
+              <svg viewBox="0 0 24 24"><path d="M3 6.75A1.75 1.75 0 0 1 4.75 5h14.5A1.75 1.75 0 0 1 21 6.75v10.5A1.75 1.75 0 0 1 19.25 19H4.75A1.75 1.75 0 0 1 3 17.25zM5.2 7.4 12 12.2l6.8-4.8.9 1.28L12 14.3 4.3 8.68z"/></svg>
+              <span>Email</span>
+            </a>
+            <a class="social" href="https://linkedin.com/" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M6.5 9H3.7v11h2.8zm.2-3.6A1.65 1.65 0 1 1 5 3.75 1.65 1.65 0 0 1 6.7 5.4zM20.3 13.3c0-3.2-1.7-4.7-4-4.7a3.44 3.44 0 0 0-3.1 1.7h-.08V9H10.5v11h2.8v-5.5c0-1.45.27-2.85 2.07-2.85s1.83 1.6 1.83 2.94V20h2.8z"/></svg>
+              <span>LinkedIn</span>
+            </a>
+            <a class="social" href="https://m.me/" target="_blank" rel="noopener">
+              <svg viewBox="0 0 24 24"><path d="M12 3C6.5 3 2.2 7 2.2 12.1A8.8 8.8 0 0 0 5 18.7V21l2.6-1.4a10.5 10.5 0 0 0 4.4 1C17.5 20.6 21.8 16.6 21.8 11.5 21.8 6.9 17.5 3 12 3zm1.1 11.8-2.3-2.5-4.5 2.5 4.9-5.2 2.4 2.5 4.4-2.5z"/></svg>
+              <span>Messenger</span>
+            </a>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <footer class="wrap footer">
+      <span>ABD EDITS · black &amp; yellow · built to overtake</span>
+      <span>© <span id="year"></span></span>
+    </footer>
+
+    <div class="modal" role="dialog" aria-label="VSL player">
+      <button class="modal-close" type="button" aria-label="Close">×</button>
+      <div class="modal-card">
+        <video id="modal-vsl" controls playsinline></video>
+      </div>
+    </div>
+
+    <script src="js/app.js" defer></script>
+  </body>
+</html>

@@ -1,0 +1,7 @@
+node_modules/
+server/uploads/videos/*
+server/uploads/images/*
+!server/uploads/videos/.gitkeep
+!server/uploads/images/.gitkeep
+server/data/admin.json
+.env

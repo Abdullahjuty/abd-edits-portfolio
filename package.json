@@ -1,0 +1,17 @@
+{
+  "name": "abd-edits-portfolio",
+  "version": "1.0.0",
+  "private": true,
+  "description": "ABD Edits video editing portfolio with a data-driven frontend and a login-protected admin panel for uploading clips, testimonials, pricing and the VSL.",
+  "scripts": {
+    "start": "node server/index.js",
+    "dev": "node server/index.js",
+    "create-admin": "node server/create-admin.js"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "express": "^4.19.2",
+    "express-session": "^1.18.0",
+    "multer": "^2.0.0"
+  }
+}

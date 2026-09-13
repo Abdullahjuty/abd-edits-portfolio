@@ -16,6 +16,7 @@ const PORT = process.env.PORT || 4000;
 const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
 
 const app = express();
+app.set("trust proxy", 1); // required for secure cookies behind Render's HTTPS proxy
 app.use(express.json());
 app.use(
   session({
@@ -41,7 +42,17 @@ function writeContent(data) {
   fs.writeFileSync(CONTENT_PATH, JSON.stringify(data, null, 2));
 }
 
+// Hosts without shell/file-persistence (e.g. Render's free tier) can set
+// ADMIN_USERNAME + ADMIN_PASSWORD as environment variables instead of
+// running the create-admin script on the server. Env vars take priority
+// over the local admin.json file when both are present.
 function readAdmin() {
+  if (process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD) {
+    return {
+      username: process.env.ADMIN_USERNAME,
+      passwordHash: bcrypt.hashSync(process.env.ADMIN_PASSWORD, 12),
+    };
+  }
   if (!fs.existsSync(ADMIN_PATH)) return null;
   return JSON.parse(fs.readFileSync(ADMIN_PATH, "utf-8"));
 }

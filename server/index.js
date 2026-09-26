@@ -199,127 +199,214 @@ app.get(
 );
 
 // ---------- admin content management ----------
+
+// Reels (the 3 scrolling proof rows)
 app.post(
-  "/api/admin/clips",
+  "/api/admin/reels",
   requireAuth,
-  upload.fields([{ name: "media" }, { name: "poster" }]),
+  upload.single("media"),
   asyncRoute(async (req, res) => {
-    const { row, size, tag, time } = req.body;
-    if (!["rtl", "ltr", "rtl-slow"].includes(row)) return res.status(400).json({ error: "Invalid row" });
+    const { row } = req.body;
+    if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
+    if (!req.file) return res.status(400).json({ error: "A video file is required" });
+    if (!req.file.mimetype.startsWith("video/")) return res.status(400).json({ error: "File must be a video" });
 
-    const mediaFile = req.files?.media?.[0];
-    const posterFile = req.files?.poster?.[0];
-    if (!mediaFile) return res.status(400).json({ error: "A video or image file is required" });
-
-    const isVideo = mediaFile.mimetype.startsWith("video/");
-    const mediaUpload = await uploadBufferToCloudinary(
-      mediaFile.buffer,
-      isVideo ? "video" : "image",
-      "abd-edits/clips"
-    );
-    let posterUrl = isVideo ? "" : mediaUpload.secure_url;
-    if (posterFile) {
-      const posterUpload = await uploadBufferToCloudinary(posterFile.buffer, "image", "abd-edits/posters");
-      posterUrl = posterUpload.secure_url;
-    }
-
+    const uploaded = await uploadBufferToCloudinary(req.file.buffer, "video", "abd-edits/reels");
     const content = await readContent();
-    const clip = {
-      id: newId("c"),
-      row,
-      size: size || "normal",
-      type: isVideo ? "video" : "image",
-      src: isVideo ? mediaUpload.secure_url : "",
-      poster: isVideo ? posterUrl : mediaUpload.secure_url,
-      time: time || "",
-      tag: tag || "",
-    };
-    content.clips.unshift(clip);
+    const reel = { id: newId("r"), src: uploaded.secure_url };
+    content.reels[row].push(reel);
     await writeContent(content);
-    res.json({ ok: true, clip });
+    res.json({ ok: true, row, reel });
   })
 );
 
 app.delete(
-  "/api/admin/clips/:id",
+  "/api/admin/reels/:row/:id",
   requireAuth,
   asyncRoute(async (req, res) => {
+    const { row, id } = req.params;
+    if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
     const content = await readContent();
-    content.clips = content.clips.filter((c) => c.id !== req.params.id);
+    content.reels[row] = content.reels[row].filter((r) => r.id !== id);
     await writeContent(content);
     res.json({ ok: true });
   })
 );
 
+// Video testimonials
 app.post(
-  "/api/admin/testimonials",
+  "/api/admin/video-testimonials",
   requireAuth,
+  upload.fields([{ name: "media" }, { name: "poster" }]),
   asyncRoute(async (req, res) => {
-    const { quote, name, role, avatar, place, featured } = req.body || {};
-    if (!quote || !name) return res.status(400).json({ error: "Quote and name are required" });
+    const { name, handle, followers, quote, duration, focus } = req.body;
+    const mediaFile = req.files?.media?.[0];
+    if (!name || !mediaFile) return res.status(400).json({ error: "Name and a video file are required" });
+    if (!mediaFile.mimetype.startsWith("video/")) return res.status(400).json({ error: "Media file must be a video" });
+
+    const mediaUpload = await uploadBufferToCloudinary(mediaFile.buffer, "video", "abd-edits/video-testimonials");
+    let posterUrl = "";
+    const posterFile = req.files?.poster?.[0];
+    if (posterFile) {
+      const posterUpload = await uploadBufferToCloudinary(posterFile.buffer, "image", "abd-edits/video-testimonials");
+      posterUrl = posterUpload.secure_url;
+    }
+
     const content = await readContent();
     const testimonial = {
-      id: newId("t"),
-      quote,
+      id: newId("vt"),
       name,
-      role: role || "",
-      avatar: avatar || name.slice(0, 2).toUpperCase(),
-      place: place || "",
-      featured: Boolean(featured),
+      handle: handle || "",
+      followers: followers || "",
+      quote: quote || "",
+      duration: duration || "",
+      focus: focus || "center",
+      src: mediaUpload.secure_url,
+      poster: posterUrl,
     };
-    content.testimonials.push(testimonial);
+    content.videoTestimonials.push(testimonial);
     await writeContent(content);
     res.json({ ok: true, testimonial });
   })
 );
 
 app.delete(
-  "/api/admin/testimonials/:id",
+  "/api/admin/video-testimonials/:id",
   requireAuth,
   asyncRoute(async (req, res) => {
     const content = await readContent();
-    content.testimonials = content.testimonials.filter((t) => t.id !== req.params.id);
+    content.videoTestimonials = content.videoTestimonials.filter((t) => t.id !== req.params.id);
     await writeContent(content);
     res.json({ ok: true });
   })
 );
 
-app.put(
-  "/api/admin/pricing",
-  requireAuth,
-  asyncRoute(async (req, res) => {
-    const { pricing } = req.body || {};
-    if (!Array.isArray(pricing)) return res.status(400).json({ error: "pricing must be an array" });
-    const content = await readContent();
-    content.pricing = pricing;
-    await writeContent(content);
-    res.json({ ok: true });
-  })
-);
-
+// Written testimonials
 app.post(
-  "/api/admin/hero",
+  "/api/admin/written-testimonials",
   requireAuth,
-  upload.fields([{ name: "vslVideo" }, { name: "vslPoster" }]),
+  asyncRoute(async (req, res) => {
+    const { quote, name } = req.body || {};
+    if (!quote || !name) return res.status(400).json({ error: "Quote and name are required" });
+    const content = await readContent();
+    const testimonial = { id: newId("wt"), quote, name };
+    content.writtenTestimonials.push(testimonial);
+    await writeContent(content);
+    res.json({ ok: true, testimonial });
+  })
+);
+
+app.delete(
+  "/api/admin/written-testimonials/:id",
+  requireAuth,
   asyncRoute(async (req, res) => {
     const content = await readContent();
-    const videoFile = req.files?.vslVideo?.[0];
-    const posterFile = req.files?.vslPoster?.[0];
-    if (videoFile) {
-      const videoUpload = await uploadBufferToCloudinary(videoFile.buffer, "video", "abd-edits/hero");
-      content.hero.vslVideo = videoUpload.secure_url;
-    }
-    if (posterFile) {
-      const posterUpload = await uploadBufferToCloudinary(posterFile.buffer, "image", "abd-edits/hero");
-      content.hero.vslPoster = posterUpload.secure_url;
-    }
-    const { eyebrow, headline1, headline2, valueProp } = req.body || {};
-    if (eyebrow) content.hero.eyebrow = eyebrow;
-    if (headline1) content.hero.headline1 = headline1;
-    if (headline2) content.hero.headline2 = headline2;
-    if (valueProp) content.hero.valueProp = valueProp;
+    content.writtenTestimonials = content.writtenTestimonials.filter((t) => t.id !== req.params.id);
     await writeContent(content);
-    res.json({ ok: true, hero: content.hero });
+    res.json({ ok: true });
+  })
+);
+
+// Before/after client results
+app.post(
+  "/api/admin/before-after",
+  requireAuth,
+  upload.fields([{ name: "before" }, { name: "after" }]),
+  asyncRoute(async (req, res) => {
+    const { client, handle, stats } = req.body;
+    const beforeFile = req.files?.before?.[0];
+    const afterFile = req.files?.after?.[0];
+    if (!client) return res.status(400).json({ error: "Client name is required" });
+
+    let beforeUrl = "";
+    let afterUrl = "";
+    if (beforeFile) beforeUrl = (await uploadBufferToCloudinary(beforeFile.buffer, "image", "abd-edits/before-after")).secure_url;
+    if (afterFile) afterUrl = (await uploadBufferToCloudinary(afterFile.buffer, "image", "abd-edits/before-after")).secure_url;
+
+    // stats textarea format: one "Label|beforeVal|afterVal" per line.
+    // Stored as an array of objects, not an array of arrays — Firestore
+    // does not support nested arrays (an array directly containing arrays).
+    const parsedStats = (stats || "")
+      .split("\n")
+      .map((line) => line.split("|").map((s) => s.trim()))
+      .filter((parts) => parts.length === 3 && parts[0])
+      .map(([label, beforeVal, afterVal]) => ({ label, beforeVal, afterVal }));
+
+    const content = await readContent();
+    const entry = {
+      id: newId("ba"),
+      client,
+      handle: handle || "",
+      before: beforeUrl,
+      after: afterUrl,
+      stats: parsedStats,
+    };
+    content.beforeAfter.push(entry);
+    await writeContent(content);
+    res.json({ ok: true, entry });
+  })
+);
+
+app.delete(
+  "/api/admin/before-after/:id",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const content = await readContent();
+    content.beforeAfter = content.beforeAfter.filter((b) => b.id !== req.params.id);
+    await writeContent(content);
+    res.json({ ok: true });
+  })
+);
+
+// Process step screenshots (4 fixed optional slots)
+const PROCESS_SLOTS = new Set(["record", "edit", "review", "upload"]);
+app.post(
+  "/api/admin/process/:slot",
+  requireAuth,
+  upload.single("media"),
+  asyncRoute(async (req, res) => {
+    const { slot } = req.params;
+    if (!PROCESS_SLOTS.has(slot)) return res.status(400).json({ error: "Invalid slot" });
+    if (!req.file) return res.status(400).json({ error: "An image file is required" });
+    const uploaded = await uploadBufferToCloudinary(req.file.buffer, "image", "abd-edits/process");
+    const content = await readContent();
+    content.process[slot] = uploaded.secure_url;
+    await writeContent(content);
+    res.json({ ok: true, slot, url: uploaded.secure_url });
+  })
+);
+
+app.delete(
+  "/api/admin/process/:slot",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { slot } = req.params;
+    if (!PROCESS_SLOTS.has(slot)) return res.status(400).json({ error: "Invalid slot" });
+    const content = await readContent();
+    content.process[slot] = "";
+    await writeContent(content);
+    res.json({ ok: true });
+  })
+);
+
+// Site settings (contact links, booking URL, meta bar text)
+app.put(
+  "/api/admin/settings",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { whatsapp, messenger, email, twitter, linkedin, bookingUrl, metaBarBooking } = req.body || {};
+    const content = await readContent();
+    content.settings = {
+      whatsapp: whatsapp ?? content.settings.whatsapp,
+      messenger: messenger ?? content.settings.messenger,
+      email: email ?? content.settings.email,
+      twitter: twitter ?? content.settings.twitter,
+      linkedin: linkedin ?? content.settings.linkedin,
+      bookingUrl: bookingUrl ?? content.settings.bookingUrl,
+      metaBarBooking: metaBarBooking ?? content.settings.metaBarBooking,
+    };
+    await writeContent(content);
+    res.json({ ok: true, settings: content.settings });
   })
 );
 

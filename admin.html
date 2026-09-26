@@ -3,92 +3,144 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>ABD Edits — Admin</title>
+    <title>hookbyabdullah — Admin</title>
     <meta name="robots" content="noindex, nofollow" />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Rajdhani:wght@500;600;700&display=swap"
-      rel="stylesheet"
-    />
-    <link rel="stylesheet" href="css/styles.css" />
-    <link rel="stylesheet" href="css/admin.css" />
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&display=swap" rel="stylesheet" />
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        theme: {
+          extend: {
+            colors: { yellow: { DEFAULT: "#FFE600" } },
+            fontFamily: { sans: ["Poppins", "sans-serif"] },
+          },
+        },
+      };
+    </script>
+    <style>
+      body { font-family: "Poppins", sans-serif; }
+      ::-webkit-scrollbar { width: 8px; }
+      ::-webkit-scrollbar-thumb { background: #e8e8e3; border-radius: 4px; }
+    </style>
   </head>
-  <body class="admin-body">
-    <div id="login-view" class="admin-panel">
-      <form id="login-form" class="admin-card">
-        <p class="eyebrow">Restricted</p>
-        <h1 class="display">Pit crew only</h1>
-        <label>Username<input type="text" name="username" autocomplete="username" required /></label>
-        <label>Password<input type="password" name="password" autocomplete="current-password" required /></label>
-        <p id="login-error" class="admin-error" hidden></p>
-        <button class="btn" type="submit">Log in</button>
+  <body class="bg-white text-[#111] min-h-screen">
+    <div id="login-view" class="min-h-screen flex items-center justify-center px-4">
+      <form id="login-form" class="w-full max-w-sm bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-8">
+        <p class="text-[11px] font-semibold tracking-widest uppercase text-[#6E6E6A] mb-1">Restricted</p>
+        <h1 class="text-2xl font-extrabold uppercase mb-6">Pit crew only</h1>
+        <label class="block mb-4">
+          <span class="block text-sm text-[#6E6E6A] mb-1">Username</span>
+          <input type="text" name="username" autocomplete="username" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 focus:outline-none focus:border-yellow" />
+        </label>
+        <label class="block mb-4">
+          <span class="block text-sm text-[#6E6E6A] mb-1">Password</span>
+          <input type="password" name="password" autocomplete="current-password" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 focus:outline-none focus:border-yellow" />
+        </label>
+        <p id="login-error" class="text-red-600 text-sm mb-4" hidden></p>
+        <button class="w-full bg-yellow text-[#0B0B0B] font-bold uppercase text-sm tracking-wide py-3 rounded-full hover:brightness-95 transition" type="submit">Log in</button>
       </form>
     </div>
 
-    <div id="dashboard-view" class="admin-panel" hidden>
-      <header class="admin-header">
-        <h1 class="display">Admin dashboard</h1>
-        <div>
-          <span id="who"></span>
-          <button id="logout-btn" class="btn btn-ghost" type="button">Log out</button>
-          <a class="btn btn-ghost" href="index.html" target="_blank">View site</a>
+    <div id="dashboard-view" class="max-w-5xl mx-auto px-4 py-10" hidden>
+      <header class="flex flex-wrap items-center justify-between gap-3 mb-8">
+        <h1 class="text-2xl font-extrabold uppercase">Admin dashboard</h1>
+        <div class="flex items-center gap-3 text-sm">
+          <span id="who" class="text-[#6E6E6A]"></span>
+          <button id="logout-btn" class="border border-[#111] rounded-full px-4 py-2 font-semibold hover:bg-[#111] hover:text-white transition" type="button">Log out</button>
+          <a class="border border-[#111] rounded-full px-4 py-2 font-semibold hover:bg-yellow transition" href="index.html" target="_blank">View site</a>
         </div>
       </header>
 
-      <section class="admin-card">
-        <h2>Upload a new clip</h2>
-        <form id="clip-form" class="admin-form">
-          <label>Row
-            <select name="row" required>
-              <option value="rtl">Row 1 · right → left</option>
-              <option value="ltr">Row 2 · left → right</option>
-              <option value="rtl-slow">Row 3 · right → left (slow)</option>
+      <!-- Reels -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">Reels (3 scrolling rows)</h2>
+        <form id="reel-form" class="grid gap-3 max-w-md mb-4">
+          <label class="block">
+            <span class="block text-sm text-[#6E6E6A] mb-1">Row</span>
+            <select name="row" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2">
+              <option value="row1">Row 1</option>
+              <option value="row2">Row 2</option>
+              <option value="row3">Row 3</option>
             </select>
           </label>
-          <label>Size
-            <select name="size">
-              <option value="normal">Normal</option>
-              <option value="wide">Wide</option>
-              <option value="portrait">Portrait</option>
-            </select>
+          <label class="block">
+            <span class="block text-sm text-[#6E6E6A] mb-1">Video file</span>
+            <input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" />
           </label>
-          <label>Tag / label<input type="text" name="tag" placeholder="e.g. Brand film" /></label>
-          <label>Duration text<input type="text" name="time" placeholder="e.g. 0:32" /></label>
-          <label>Video or image file<input type="file" name="media" accept="video/mp4,video/webm,image/jpeg,image/png,image/webp" required /></label>
-          <label>Poster image (optional, recommended for videos)<input type="file" name="poster" accept="image/jpeg,image/png,image/webp" /></label>
-          <button class="btn" type="submit">Upload clip</button>
-          <p class="admin-status" id="clip-status"></p>
+          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload reel</button>
+          <p class="text-sm min-h-[1.2em]" id="reel-status"></p>
         </form>
-        <div id="clip-list" class="admin-list"></div>
+        <div id="reel-list" class="grid gap-2"></div>
       </section>
 
-      <section class="admin-card">
-        <h2>Testimonials</h2>
-        <form id="testimonial-form" class="admin-form">
-          <label>Client name<input type="text" name="name" required /></label>
-          <label>Role / company<input type="text" name="role" placeholder="e.g. Founder, Northline Co." /></label>
-          <label>Quote<textarea name="quote" rows="3" required></textarea></label>
-          <label><input type="checkbox" name="featured" /> Feature this one (center spotlight)</label>
-          <button class="btn" type="submit">Add testimonial</button>
-          <p class="admin-status" id="testimonial-status"></p>
+      <!-- Video testimonials -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">Video testimonials</h2>
+        <form id="vt-form" class="grid gap-3 max-w-md mb-4">
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Name</span><input type="text" name="name" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Instagram handle (optional, no @)</span><input type="text" name="handle" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Followers text (optional)</span><input type="text" name="followers" placeholder="e.g. 124K followers" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Quote (optional)</span><textarea name="quote" rows="2" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2"></textarea></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Duration text</span><input type="text" name="duration" placeholder="e.g. 0:42" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">CSS object-position (optional)</span><input type="text" name="focus" placeholder="e.g. center or 35% center" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Poster image (optional)</span><input type="file" name="poster" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload testimonial</button>
+          <p class="text-sm min-h-[1.2em]" id="vt-status"></p>
         </form>
-        <div id="testimonial-list" class="admin-list"></div>
+        <div id="vt-list" class="grid gap-2"></div>
       </section>
 
-      <section class="admin-card">
-        <h2>Pricing plans</h2>
-        <div id="pricing-editor"></div>
-        <button id="save-pricing" class="btn" type="button">Save pricing</button>
-        <p class="admin-status" id="pricing-status"></p>
+      <!-- Written testimonials -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">Written testimonials</h2>
+        <form id="wt-form" class="grid gap-3 max-w-md mb-4">
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Client name</span><input type="text" name="name" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Quote</span><textarea name="quote" rows="3" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2"></textarea></label>
+          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add testimonial</button>
+          <p class="text-sm min-h-[1.2em]" id="wt-status"></p>
+        </form>
+        <div id="wt-list" class="grid gap-2"></div>
       </section>
 
-      <section class="admin-card">
-        <h2>Hero / VSL</h2>
-        <form id="hero-form" class="admin-form">
-          <label>Value proposition (3-line headline)<input type="text" name="valueProp" /></label>
-          <label>VSL video file<input type="file" name="vslVideo" accept="video/mp4,video/webm" /></label>
-          <label>VSL poster image<input type="file" name="vslPoster" accept="image/jpeg,image/png,image/webp" /></label>
-          <button class="btn" type="submit">Save hero</button>
-          <p class="admin-status" id="hero-status"></p>
+      <!-- Before / after -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">Before &amp; after results</h2>
+        <form id="ba-form" class="grid gap-3 max-w-md mb-4">
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Client name</span><input type="text" name="client" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Handle (optional)</span><input type="text" name="handle" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block">
+            <span class="block text-sm text-[#6E6E6A] mb-1">Stats, one per line as <code>Label|Before|After</code></span>
+            <textarea name="stats" rows="3" placeholder="Followers|1.2K|18K&#10;Avg. views per reel|3K|120K" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 font-mono text-sm"></textarea>
+          </label>
+          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add result</button>
+          <p class="text-sm min-h-[1.2em]" id="ba-status"></p>
+        </form>
+        <div id="ba-list" class="grid gap-2"></div>
+      </section>
+
+      <!-- Process screenshots -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">"How we work" screenshots (optional)</h2>
+        <p class="text-sm text-[#6E6E6A] mb-4">Each step shows a drawn mockup by default. Upload a real screenshot to replace it, or leave empty.</p>
+        <div id="process-slots" class="grid sm:grid-cols-2 gap-4"></div>
+      </section>
+
+      <!-- Settings -->
+      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
+        <h2 class="text-lg font-extrabold uppercase mb-4">Contact &amp; booking settings</h2>
+        <form id="settings-form" class="grid gap-3 max-w-md">
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">WhatsApp number (digits only, with country code)</span><input type="text" name="whatsapp" placeholder="923248061911" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Messenger link</span><input type="text" name="messenger" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Email</span><input type="email" name="email" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Twitter / X link</span><input type="text" name="twitter" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">LinkedIn link</span><input type="text" name="linkedin" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Booking URL (Calendly etc., optional — falls back to WhatsApp)</span><input type="text" name="bookingUrl" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Top meta-bar text</span><input type="text" name="metaBarBooking" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
+          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Save settings</button>
+          <p class="text-sm min-h-[1.2em]" id="settings-status"></p>
         </form>
       </section>
     </div>

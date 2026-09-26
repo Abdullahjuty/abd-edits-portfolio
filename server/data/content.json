@@ -1,61 +1,25 @@
 {
-  "hero": {
-    "eyebrow": "Video editor · ads · youtube · reels",
-    "headline1": "Your footage is the engine.",
-    "headline2": "I make it finish first.",
-    "valueProp": "Cinematic ads, YouTube, and reels that convert in the first 3 seconds.",
-    "stats": [
-      { "value": "48h", "label": "Avg. turnaround" },
-      { "value": "3s", "label": "Hook-first edits" },
-      { "value": "100%", "label": "Frame control" }
-    ],
-    "vslPoster": "",
-    "vslVideo": ""
+  "reels": {
+    "row1": [],
+    "row2": [],
+    "row3": []
   },
-  "clips": [],
-  "testimonials": [],
-  "pricing": [
-    {
-      "id": "p1",
-      "name": "Qualifying",
-      "price": "$249",
-      "unit": "/ 3 shorts",
-      "features": [
-        "3 reels or ads, up to 30s",
-        "Captions + beat sync",
-        "1 revision lap",
-        "48–72h delivery"
-      ],
-      "cta": "Start qualifying",
-      "hot": false
-    },
-    {
-      "id": "p2",
-      "name": "Race Day",
-      "price": "$790",
-      "unit": "/ project",
-      "features": [
-        "1 long-form (up to 12 min) or 8 shorts",
-        "Thumbnails + hook variants",
-        "Color, sound, captions",
-        "2 revision laps · 5-day pit"
-      ],
-      "cta": "Take pole",
-      "hot": true
-    },
-    {
-      "id": "p3",
-      "name": "Championship",
-      "price": "$1.9k",
-      "unit": "/ month",
-      "features": [
-        "Retainer: weekly content engine",
-        "Priority queue + Slack pit wall",
-        "Ads + YouTube + reels mix",
-        "Strategy call every other week"
-      ],
-      "cta": "Reserve a seat",
-      "hot": false
-    }
-  ]
+  "videoTestimonials": [],
+  "writtenTestimonials": [],
+  "beforeAfter": [],
+  "process": {
+    "record": "",
+    "edit": "",
+    "review": "",
+    "upload": ""
+  },
+  "settings": {
+    "whatsapp": "923248061911",
+    "messenger": "",
+    "email": "pulsecreation7770@gmail.com",
+    "twitter": "",
+    "linkedin": "",
+    "bookingUrl": "",
+    "metaBarBooking": "Booking October — limited slots"
+  }
 }

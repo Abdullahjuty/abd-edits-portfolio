@@ -51,9 +51,14 @@ async function checkAuth() {
   }
 }
 
+const loginBtn = loginForm.querySelector('button[type="submit"]');
+const loginBtnDefaultText = loginBtn.textContent;
+
 loginForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   loginError.hidden = true;
+  loginBtn.disabled = true;
+  loginBtn.textContent = "Logging in…";
   const formData = new FormData(loginForm);
   try {
     await api("/api/admin/login", {
@@ -61,10 +66,13 @@ loginForm.addEventListener("submit", async (e) => {
       body: JSON.stringify({ username: formData.get("username"), password: formData.get("password") }),
       headers: { "Content-Type": "application/json" },
     });
-    checkAuth();
+    await checkAuth();
   } catch (err) {
     loginError.textContent = err.message;
     loginError.hidden = false;
+  } finally {
+    loginBtn.disabled = false;
+    loginBtn.textContent = loginBtnDefaultText;
   }
 });
 

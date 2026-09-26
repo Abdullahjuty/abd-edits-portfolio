@@ -21,6 +21,12 @@
       body { font-family: "Poppins", sans-serif; }
       ::-webkit-scrollbar { width: 8px; }
       ::-webkit-scrollbar-thumb { background: #e8e8e3; border-radius: 4px; }
+      /* Tailwind's utility classes (e.g. "flex") have the same specificity
+         as the browser's built-in [hidden]{display:none} rule, and author
+         CSS always wins over that default — so without this override,
+         toggling .hidden in JS silently does nothing on elements that also
+         carry a display utility class. */
+      [hidden] { display: none !important; }
     </style>
   </head>
   <body class="bg-white text-[#111] min-h-screen">

@@ -6,3 +6,4 @@ server/uploads/images/*
 server/data/admin.json
 .env
 *firebase-adminsdk*.json
+.vercel

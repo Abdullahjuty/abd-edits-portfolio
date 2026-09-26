@@ -2,9 +2,9 @@ const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
 const express = require("express");
-const session = require("express-session");
-const multer = require("multer");
 const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+const cookie = require("cookie");
 const admin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
 const cloudinary = require("cloudinary").v2;
@@ -15,22 +15,29 @@ const SEED_CONTENT_PATH = path.join(DATA_DIR, "content.json");
 const ADMIN_PATH = path.join(DATA_DIR, "admin.json");
 
 const PORT = process.env.PORT || 4000;
-const SESSION_SECRET = process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+// Signs and verifies admin login JWTs. This replaces express-session: a
+// JWT is a self-contained, signed proof of login that needs no server-side
+// memory to check — which matters because a serverless host (Vercel,
+// Cloudflare) may run each request in a fresh process with nothing
+// remembered between them. Set this explicitly in production; the random
+// fallback is only for quick local testing (it would invalidate existing
+// logins on every restart, which is fine on your own laptop, not in prod).
+const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+const JWT_COOKIE_NAME = "admin_token";
+const JWT_EXPIRY = "30d"; // admins log in rarely — keep them signed in for weeks, not hours
 
 // ---------------------------------------------------------------------
-// Firestore: this is where all site content (clips, testimonials,
-// pricing, hero text) lives permanently. It survives server restarts
-// and redeploys, unlike a local JSON file on a host with ephemeral disk
-// (e.g. Render's free tier), which resets to whatever is in the git
-// repo every time the container restarts.
+// Firestore: this is where all site content (reels, testimonials,
+// before/after, settings) lives permanently — independent of whichever
+// host runs this server.
 // ---------------------------------------------------------------------
 function loadFirebaseCredentials() {
   if (process.env.FIREBASE_PROJECT_ID && process.env.FIREBASE_CLIENT_EMAIL && process.env.FIREBASE_PRIVATE_KEY) {
     return {
       projectId: process.env.FIREBASE_PROJECT_ID,
       clientEmail: process.env.FIREBASE_CLIENT_EMAIL,
-      // Render (and most host env-var UIs) can't store literal newlines,
-      // so the key is stored with escaped \n and unescaped here.
+      // Most host env-var UIs can't store literal newlines, so the key is
+      // stored with escaped \n and unescaped here.
       privateKey: process.env.FIREBASE_PRIVATE_KEY.replace(/\\n/g, "\n"),
     };
   }
@@ -55,15 +62,15 @@ if (!firebaseCreds) {
   process.exit(1);
 }
 
-admin.initializeApp({ credential: admin.cert(firebaseCreds) });
+if (!admin.getApps().length) {
+  admin.initializeApp({ credential: admin.cert(firebaseCreds) });
+}
 const db = getFirestore();
 const CONTENT_DOC = db.collection("site").doc("content");
 
 async function readContent() {
   const snap = await CONTENT_DOC.get();
   if (snap.exists) return snap.data();
-  // First run: seed Firestore from the bundled defaults, then always
-  // read/write Firestore from here on.
   const seed = JSON.parse(fs.readFileSync(SEED_CONTENT_PATH, "utf-8"));
   await CONTENT_DOC.set(seed);
   return seed;
@@ -74,9 +81,12 @@ async function writeContent(data) {
 }
 
 // ---------------------------------------------------------------------
-// Cloudinary: actual video/image files are uploaded here instead of the
-// server's local disk, for the same persistence reason as Firestore
-// above — local disk uploads would vanish on every restart.
+// Cloudinary: the browser uploads files directly here (see the
+// /api/admin/upload-signature route below) instead of relaying them
+// through this server. Two reasons: serverless hosts like Vercel cap a
+// function's request body at ~4.5MB (far too small for video), and even
+// without that limit, relaying bytes through our server is a pointless
+// extra hop when Cloudinary can take them directly from the browser.
 // ---------------------------------------------------------------------
 cloudinary.config({
   cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
@@ -84,38 +94,13 @@ cloudinary.config({
   api_secret: process.env.CLOUDINARY_API_SECRET,
 });
 
-function uploadBufferToCloudinary(buffer, resourceType, folder) {
-  return new Promise((resolve, reject) => {
-    const stream = cloudinary.uploader.upload_stream(
-      { resource_type: resourceType, folder },
-      (err, result) => (err ? reject(err) : resolve(result))
-    );
-    stream.end(buffer);
-  });
-}
-
 // ---------------------------------------------------------------------
 const app = express();
-app.set("trust proxy", 1); // required for secure cookies behind Render's HTTPS proxy
+app.set("trust proxy", 1); // required for correctly detecting HTTPS behind a host's proxy
 app.use(express.json());
-app.use(
-  session({
-    secret: SESSION_SECRET,
-    resave: false,
-    saveUninitialized: false,
-    cookie: {
-      httpOnly: true,
-      sameSite: "lax",
-      secure: process.env.NODE_ENV === "production" && process.env.FORCE_HTTPS === "1",
-      maxAge: 1000 * 60 * 60 * 8,
-    },
-  })
-);
 
-// Hosts without shell access (e.g. Render's free tier) can set
-// ADMIN_USERNAME + ADMIN_PASSWORD as environment variables instead of
-// running the create-admin script on the server. Env vars take priority
-// over the local admin.json file when both are present.
+// Hosts without shell access can set ADMIN_USERNAME + ADMIN_PASSWORD as
+// environment variables instead of running the create-admin script.
 function readAdmin() {
   if (process.env.ADMIN_USERNAME && process.env.ADMIN_PASSWORD) {
     return {
@@ -127,9 +112,49 @@ function readAdmin() {
   return JSON.parse(fs.readFileSync(ADMIN_PATH, "utf-8"));
 }
 
+function getTokenFromRequest(req) {
+  const header = req.headers.cookie;
+  if (!header) return null;
+  const parsed = cookie.parse(header);
+  return parsed[JWT_COOKIE_NAME] || null;
+}
+
 function requireAuth(req, res, next) {
-  if (req.session && req.session.isAdmin) return next();
-  return res.status(401).json({ error: "Not authenticated" });
+  const token = getTokenFromRequest(req);
+  if (!token) return res.status(401).json({ error: "Not authenticated" });
+  try {
+    req.admin = jwt.verify(token, JWT_SECRET);
+    next();
+  } catch {
+    return res.status(401).json({ error: "Not authenticated" });
+  }
+}
+
+function setAuthCookie(res, username) {
+  const token = jwt.sign({ username }, JWT_SECRET, { expiresIn: JWT_EXPIRY });
+  res.setHeader(
+    "Set-Cookie",
+    cookie.serialize(JWT_COOKIE_NAME, token, {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 60 * 60 * 24 * 30,
+    })
+  );
+}
+
+function clearAuthCookie(res) {
+  res.setHeader(
+    "Set-Cookie",
+    cookie.serialize(JWT_COOKIE_NAME, "", {
+      httpOnly: true,
+      sameSite: "lax",
+      secure: process.env.NODE_ENV === "production",
+      path: "/",
+      maxAge: 0,
+    })
+  );
 }
 
 function newId(prefix) {
@@ -143,27 +168,6 @@ function asyncRoute(handler) {
   });
 }
 
-// ---------- uploads (kept in memory, then streamed straight to Cloudinary) ----------
-const ALLOWED_MIME = new Set([
-  "video/mp4",
-  "video/webm",
-  "video/quicktime",
-  "image/jpeg",
-  "image/png",
-  "image/webp",
-]);
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 500 * 1024 * 1024 }, // 500MB per file
-  fileFilter(req, file, cb) {
-    if (!ALLOWED_MIME.has(file.mimetype)) {
-      return cb(new Error("Unsupported file type"));
-    }
-    cb(null, true);
-  },
-});
-
 // ---------- auth routes ----------
 app.post("/api/admin/login", (req, res) => {
   const { username, password } = req.body || {};
@@ -174,21 +178,51 @@ app.post("/api/admin/login", (req, res) => {
   if (username !== adminAccount.username || !bcrypt.compareSync(password || "", adminAccount.passwordHash)) {
     return res.status(401).json({ error: "Invalid username or password" });
   }
-  req.session.isAdmin = true;
-  req.session.username = username;
+  setAuthCookie(res, username);
   res.json({ ok: true, username });
 });
 
 app.post("/api/admin/logout", (req, res) => {
-  req.session.destroy(() => res.json({ ok: true }));
+  clearAuthCookie(res);
+  res.json({ ok: true });
 });
 
 app.get("/api/admin/me", (req, res) => {
-  if (req.session && req.session.isAdmin) {
-    return res.json({ authenticated: true, username: req.session.username });
+  const token = getTokenFromRequest(req);
+  if (!token) return res.json({ authenticated: false });
+  try {
+    const payload = jwt.verify(token, JWT_SECRET);
+    res.json({ authenticated: true, username: payload.username });
+  } catch {
+    res.json({ authenticated: false });
   }
-  res.json({ authenticated: false });
 });
+
+// Gives the browser everything it needs to upload one file straight to
+// Cloudinary. The signature is time-limited (the timestamp is baked into
+// it) and folder/resource_type-scoped, so it can't be reused to upload
+// somewhere else or after it expires.
+app.post(
+  "/api/admin/upload-signature",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { folder, resourceType } = req.body || {};
+    if (!folder || !["image", "video"].includes(resourceType)) {
+      return res.status(400).json({ error: "folder and a valid resourceType are required" });
+    }
+    const timestamp = Math.round(Date.now() / 1000);
+    const paramsToSign = { folder, timestamp };
+    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
+    res.json({
+      signature,
+      timestamp,
+      apiKey: process.env.CLOUDINARY_API_KEY,
+      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
+      folder,
+      resourceType,
+    });
+  })
+);
 
 // ---------- public content ----------
 app.get(
@@ -199,21 +233,21 @@ app.get(
 );
 
 // ---------- admin content management ----------
+// Every route below receives only small JSON metadata — the actual video/
+// image bytes already went straight from the browser to Cloudinary via the
+// signature route above, so none of this ever touches a request body size
+// limit.
 
 // Reels (the 3 scrolling proof rows)
 app.post(
   "/api/admin/reels",
   requireAuth,
-  upload.single("media"),
   asyncRoute(async (req, res) => {
-    const { row } = req.body;
+    const { row, src } = req.body || {};
     if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
-    if (!req.file) return res.status(400).json({ error: "A video file is required" });
-    if (!req.file.mimetype.startsWith("video/")) return res.status(400).json({ error: "File must be a video" });
-
-    const uploaded = await uploadBufferToCloudinary(req.file.buffer, "video", "abd-edits/reels");
+    if (!src) return res.status(400).json({ error: "src is required" });
     const content = await readContent();
-    const reel = { id: newId("r"), src: uploaded.secure_url };
+    const reel = { id: newId("r"), src };
     content.reels[row].push(reel);
     await writeContent(content);
     res.json({ ok: true, row, reel });
@@ -237,21 +271,9 @@ app.delete(
 app.post(
   "/api/admin/video-testimonials",
   requireAuth,
-  upload.fields([{ name: "media" }, { name: "poster" }]),
   asyncRoute(async (req, res) => {
-    const { name, handle, followers, quote, duration, focus } = req.body;
-    const mediaFile = req.files?.media?.[0];
-    if (!name || !mediaFile) return res.status(400).json({ error: "Name and a video file are required" });
-    if (!mediaFile.mimetype.startsWith("video/")) return res.status(400).json({ error: "Media file must be a video" });
-
-    const mediaUpload = await uploadBufferToCloudinary(mediaFile.buffer, "video", "abd-edits/video-testimonials");
-    let posterUrl = "";
-    const posterFile = req.files?.poster?.[0];
-    if (posterFile) {
-      const posterUpload = await uploadBufferToCloudinary(posterFile.buffer, "image", "abd-edits/video-testimonials");
-      posterUrl = posterUpload.secure_url;
-    }
-
+    const { name, handle, followers, quote, duration, focus, src, poster } = req.body || {};
+    if (!name || !src) return res.status(400).json({ error: "Name and src are required" });
     const content = await readContent();
     const testimonial = {
       id: newId("vt"),
@@ -261,8 +283,8 @@ app.post(
       quote: quote || "",
       duration: duration || "",
       focus: focus || "center",
-      src: mediaUpload.secure_url,
-      poster: posterUrl,
+      src,
+      poster: poster || "",
     };
     content.videoTestimonials.push(testimonial);
     await writeContent(content);
@@ -311,17 +333,9 @@ app.delete(
 app.post(
   "/api/admin/before-after",
   requireAuth,
-  upload.fields([{ name: "before" }, { name: "after" }]),
   asyncRoute(async (req, res) => {
-    const { client, handle, stats } = req.body;
-    const beforeFile = req.files?.before?.[0];
-    const afterFile = req.files?.after?.[0];
+    const { client, handle, stats, before, after } = req.body || {};
     if (!client) return res.status(400).json({ error: "Client name is required" });
-
-    let beforeUrl = "";
-    let afterUrl = "";
-    if (beforeFile) beforeUrl = (await uploadBufferToCloudinary(beforeFile.buffer, "image", "abd-edits/before-after")).secure_url;
-    if (afterFile) afterUrl = (await uploadBufferToCloudinary(afterFile.buffer, "image", "abd-edits/before-after")).secure_url;
 
     // stats textarea format: one "Label|beforeVal|afterVal" per line.
     // Stored as an array of objects, not an array of arrays — Firestore
@@ -337,8 +351,8 @@ app.post(
       id: newId("ba"),
       client,
       handle: handle || "",
-      before: beforeUrl,
-      after: afterUrl,
+      before: before || "",
+      after: after || "",
       stats: parsedStats,
     };
     content.beforeAfter.push(entry);
@@ -363,16 +377,15 @@ const PROCESS_SLOTS = new Set(["record", "edit", "review", "upload"]);
 app.post(
   "/api/admin/process/:slot",
   requireAuth,
-  upload.single("media"),
   asyncRoute(async (req, res) => {
     const { slot } = req.params;
+    const { url } = req.body || {};
     if (!PROCESS_SLOTS.has(slot)) return res.status(400).json({ error: "Invalid slot" });
-    if (!req.file) return res.status(400).json({ error: "An image file is required" });
-    const uploaded = await uploadBufferToCloudinary(req.file.buffer, "image", "abd-edits/process");
+    if (!url) return res.status(400).json({ error: "url is required" });
     const content = await readContent();
-    content.process[slot] = uploaded.secure_url;
+    content.process[slot] = url;
     await writeContent(content);
-    res.json({ ok: true, slot, url: uploaded.secure_url });
+    res.json({ ok: true, slot, url });
   })
 );
 
@@ -410,12 +423,17 @@ app.put(
   })
 );
 
-// ---------- static files ----------
+// ---------- static files (used for local dev / non-Vercel hosts; Vercel
+// serves these directly from its CDN without invoking this function) ----------
 app.use(express.static(ROOT, { index: "index.html" }));
 
-app.listen(PORT, () => {
-  console.log(`ABD Edits server running at http://localhost:${PORT}`);
-  if (!readAdmin()) {
-    console.log("No admin account found yet. Set ADMIN_USERNAME/ADMIN_PASSWORD env vars, or run: npm run create-admin -- <username> <password>");
-  }
-});
+if (require.main === module) {
+  app.listen(PORT, () => {
+    console.log(`ABD Edits server running at http://localhost:${PORT}`);
+    if (!readAdmin()) {
+      console.log("No admin account found yet. Set ADMIN_USERNAME/ADMIN_PASSWORD env vars, or run: npm run create-admin -- <username> <password>");
+    }
+  });
+}
+
+module.exports = app;

@@ -42,11 +42,11 @@ async function api(path, options = {}) {
 // this is what lets the admin panel show a real "42% uploaded" bar instead
 // of just a stuck "Uploading…" with no feedback until it either finishes
 // or silently fails.
-function uploadWithProgress(path, formData, method, onProgress) {
+function uploadWithProgress(url, formData, method, onProgress, withCredentials) {
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();
-    xhr.open(method || "POST", path);
-    xhr.withCredentials = true;
+    xhr.open(method || "POST", url);
+    xhr.withCredentials = withCredentials !== false;
     xhr.upload.addEventListener("progress", (e) => {
       if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
     });
@@ -54,11 +54,38 @@ function uploadWithProgress(path, formData, method, onProgress) {
       let data = {};
       try { data = JSON.parse(xhr.responseText); } catch {}
       if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-      else reject(new Error(data.error || `Request failed (HTTP ${xhr.status})`));
+      else reject(new Error(data.error || data.error?.message || `Request failed (HTTP ${xhr.status})`));
     });
     xhr.addEventListener("error", () => reject(new Error("Network error during upload")));
     xhr.send(formData);
   });
+}
+
+// The browser uploads the file straight to Cloudinary (not through our
+// server) — our backend only ever hands out a short-lived, folder-scoped
+// signature. This matters because serverless hosts cap a function's
+// request body at a few MB, far too small for video, and it's also just
+// faster: one hop instead of two.
+async function uploadToCloudinary(file, folder, resourceType, onProgress) {
+  const sig = await api("/api/admin/upload-signature", {
+    method: "POST",
+    body: JSON.stringify({ folder, resourceType }),
+    headers: { "Content-Type": "application/json" },
+  });
+  const formData = new FormData();
+  formData.append("file", file);
+  formData.append("api_key", sig.apiKey);
+  formData.append("timestamp", sig.timestamp);
+  formData.append("signature", sig.signature);
+  formData.append("folder", sig.folder);
+  const result = await uploadWithProgress(
+    `https://api.cloudinary.com/v1_1/${sig.cloudName}/${resourceType}/upload`,
+    formData,
+    "POST",
+    onProgress,
+    false
+  );
+  return result.secure_url;
 }
 
 async function checkAuth() {
@@ -127,11 +154,19 @@ const reelList = document.getElementById("reel-list");
 reelForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = reelForm.querySelector('button[type="submit"]');
+  const formData = new FormData(reelForm);
+  const row = formData.get("row");
+  const file = formData.get("media");
   btn.disabled = true;
   reelStatus.textContent = "Uploading… 0%";
   try {
-    await uploadWithProgress("/api/admin/reels", new FormData(reelForm), "POST", (pct) => {
+    const src = await uploadToCloudinary(file, "abd-edits/reels", "video", (pct) => {
       reelStatus.textContent = `Uploading… ${pct}%`;
+    });
+    await api("/api/admin/reels", {
+      method: "POST",
+      body: JSON.stringify({ row, src }),
+      headers: { "Content-Type": "application/json" },
     });
     reelStatus.textContent = "✅ Uploaded successfully.";
     reelForm.reset();
@@ -164,11 +199,35 @@ const vtList = document.getElementById("vt-list");
 vtForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = vtForm.querySelector('button[type="submit"]');
+  const formData = new FormData(vtForm);
+  const mediaFile = formData.get("media");
+  const posterFile = formData.get("poster");
   btn.disabled = true;
-  vtStatus.textContent = "Uploading… 0%";
   try {
-    await uploadWithProgress("/api/admin/video-testimonials", new FormData(vtForm), "POST", (pct) => {
-      vtStatus.textContent = `Uploading… ${pct}%`;
+    vtStatus.textContent = "Uploading video… 0%";
+    const src = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
+      vtStatus.textContent = `Uploading video… ${pct}%`;
+    });
+    let poster = "";
+    if (posterFile && posterFile.size > 0) {
+      vtStatus.textContent = "Uploading poster… 0%";
+      poster = await uploadToCloudinary(posterFile, "abd-edits/video-testimonials", "image", (pct) => {
+        vtStatus.textContent = `Uploading poster… ${pct}%`;
+      });
+    }
+    await api("/api/admin/video-testimonials", {
+      method: "POST",
+      body: JSON.stringify({
+        name: formData.get("name"),
+        handle: formData.get("handle"),
+        followers: formData.get("followers"),
+        quote: formData.get("quote"),
+        duration: formData.get("duration"),
+        focus: formData.get("focus"),
+        src,
+        poster,
+      }),
+      headers: { "Content-Type": "application/json" },
     });
     vtStatus.textContent = "✅ Uploaded successfully.";
     vtForm.reset();
@@ -232,11 +291,35 @@ const baList = document.getElementById("ba-list");
 baForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = baForm.querySelector('button[type="submit"]');
+  const formData = new FormData(baForm);
+  const beforeFile = formData.get("before");
+  const afterFile = formData.get("after");
   btn.disabled = true;
-  baStatus.textContent = "Uploading… 0%";
   try {
-    await uploadWithProgress("/api/admin/before-after", new FormData(baForm), "POST", (pct) => {
-      baStatus.textContent = `Uploading… ${pct}%`;
+    let before = "";
+    let after = "";
+    if (beforeFile && beforeFile.size > 0) {
+      baStatus.textContent = "Uploading before… 0%";
+      before = await uploadToCloudinary(beforeFile, "abd-edits/before-after", "image", (pct) => {
+        baStatus.textContent = `Uploading before… ${pct}%`;
+      });
+    }
+    if (afterFile && afterFile.size > 0) {
+      baStatus.textContent = "Uploading after… 0%";
+      after = await uploadToCloudinary(afterFile, "abd-edits/before-after", "image", (pct) => {
+        baStatus.textContent = `Uploading after… ${pct}%`;
+      });
+    }
+    await api("/api/admin/before-after", {
+      method: "POST",
+      body: JSON.stringify({
+        client: formData.get("client"),
+        handle: formData.get("handle"),
+        stats: formData.get("stats"),
+        before,
+        after,
+      }),
+      headers: { "Content-Type": "application/json" },
     });
     baStatus.textContent = "✅ Added successfully.";
     baForm.reset();
@@ -283,11 +366,16 @@ function renderProcessSlots(process) {
     const status = box.querySelector(".status");
     box.querySelector(".upload-btn").addEventListener("click", async () => {
       if (!fileInput.files[0]) { status.textContent = "Choose a file first."; return; }
-      const fd = new FormData();
-      fd.append("media", fileInput.files[0]);
-      status.textContent = "Uploading…";
+      status.textContent = "Uploading… 0%";
       try {
-        await uploadWithProgress(`/api/admin/process/${slot}`, fd, "POST", (pct) => { status.textContent = `Uploading… ${pct}%`; });
+        const url = await uploadToCloudinary(fileInput.files[0], "abd-edits/process", "image", (pct) => {
+          status.textContent = `Uploading… ${pct}%`;
+        });
+        await api(`/api/admin/process/${slot}`, {
+          method: "POST",
+          body: JSON.stringify({ url }),
+          headers: { "Content-Type": "application/json" },
+        });
         status.textContent = "✅ Saved.";
         loadDashboard();
       } catch (err) {

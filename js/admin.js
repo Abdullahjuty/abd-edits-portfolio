@@ -4,6 +4,29 @@ const loginForm = document.getElementById("login-form");
 const loginError = document.getElementById("login-error");
 const whoEl = document.getElementById("who");
 
+// ---------- sidebar tab navigation ----------
+const navButtons = [...document.querySelectorAll(".nav-btn")];
+const panels = [...document.querySelectorAll(".panel")];
+const panelTitle = document.getElementById("panel-title");
+const navList = document.getElementById("nav-list");
+const navToggle = document.getElementById("nav-toggle");
+
+function showTab(tab) {
+  panels.forEach((p) => { p.hidden = p.dataset.panel !== tab; });
+  navButtons.forEach((b) => {
+    const active = b.dataset.tab === tab;
+    b.classList.toggle("bg-yellow", active);
+    b.classList.toggle("text-[#6E6E6A]", !active);
+  });
+  const activeBtn = navButtons.find((b) => b.dataset.tab === tab);
+  if (activeBtn) panelTitle.textContent = activeBtn.textContent;
+  if (window.matchMedia("(max-width: 767px)").matches) navList.classList.add("hidden");
+}
+
+navButtons.forEach((btn) => btn.addEventListener("click", () => showTab(btn.dataset.tab)));
+navToggle.addEventListener("click", () => navList.classList.toggle("hidden"));
+showTab("reels");
+
 async function api(path, options = {}) {
   const res = await fetch(path, {
     credentials: "same-origin",

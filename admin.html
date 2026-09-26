@@ -27,6 +27,21 @@
          toggling .hidden in JS silently does nothing on elements that also
          carry a display utility class. */
       [hidden] { display: none !important; }
+      .field { display: grid; gap: 6px; }
+      .field span { font-size: 13px; color: #6e6e6a; }
+      .field input, .field select, .field textarea {
+        width: 100%;
+        border: 1px solid #e8e8e3;
+        border-radius: 8px;
+        padding: 10px 12px;
+        font-size: 14px;
+        background: #fff;
+      }
+      .field input:focus, .field select:focus, .field textarea:focus {
+        outline: none;
+        border-color: #ffe600;
+        box-shadow: 0 0 0 3px rgba(255, 230, 0, 0.25);
+      }
     </style>
   </head>
   <body class="bg-white text-[#111] min-h-screen">
@@ -34,121 +49,140 @@
       <form id="login-form" class="w-full max-w-sm bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-8">
         <p class="text-[11px] font-semibold tracking-widest uppercase text-[#6E6E6A] mb-1">Restricted</p>
         <h1 class="text-2xl font-extrabold uppercase mb-6">Pit crew only</h1>
-        <label class="block mb-4">
-          <span class="block text-sm text-[#6E6E6A] mb-1">Username</span>
-          <input type="text" name="username" autocomplete="username" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 focus:outline-none focus:border-yellow" />
-        </label>
-        <label class="block mb-4">
-          <span class="block text-sm text-[#6E6E6A] mb-1">Password</span>
-          <input type="password" name="password" autocomplete="current-password" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 focus:outline-none focus:border-yellow" />
-        </label>
+        <label class="field mb-4"><span>Username</span><input type="text" name="username" autocomplete="username" required /></label>
+        <label class="field mb-4"><span>Password</span><input type="password" name="password" autocomplete="current-password" required /></label>
         <p id="login-error" class="text-red-600 text-sm mb-4" hidden></p>
         <button class="w-full bg-yellow text-[#0B0B0B] font-bold uppercase text-sm tracking-wide py-3 rounded-full hover:brightness-95 transition" type="submit">Log in</button>
       </form>
     </div>
 
-    <div id="dashboard-view" class="max-w-5xl mx-auto px-4 py-10" hidden>
-      <header class="flex flex-wrap items-center justify-between gap-3 mb-8">
-        <h1 class="text-2xl font-extrabold uppercase">Admin dashboard</h1>
-        <div class="flex items-center gap-3 text-sm">
-          <span id="who" class="text-[#6E6E6A]"></span>
-          <button id="logout-btn" class="border border-[#111] rounded-full px-4 py-2 font-semibold hover:bg-[#111] hover:text-white transition" type="button">Log out</button>
-          <a class="border border-[#111] rounded-full px-4 py-2 font-semibold hover:bg-yellow transition" href="index.html" target="_blank">View site</a>
+    <div id="dashboard-view" class="min-h-screen md:flex" hidden>
+      <!-- Sidebar / mobile top bar -->
+      <aside class="md:w-60 md:shrink-0 border-b md:border-b-0 md:border-r border-[#E8E8E3] bg-[#F6F6F3]">
+        <div class="flex md:block items-center justify-between px-4 py-4 md:px-5 md:py-6">
+          <h1 class="text-base font-extrabold uppercase">Admin</h1>
+          <button id="nav-toggle" class="md:hidden border border-[#111] rounded-md px-2 py-1 text-xs" type="button">Menu</button>
         </div>
-      </header>
+        <nav id="nav-list" class="hidden md:block px-2 pb-4 md:px-3 md:space-y-1">
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="reels">Reels</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="video-testimonials">Video testimonials</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="written-testimonials">Written testimonials</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="before-after">Before &amp; after</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="process">Process screenshots</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="settings">Contact &amp; booking</button>
+          <div class="border-t border-[#E8E8E3] my-2"></div>
+          <a class="block px-3 py-2 rounded-md text-sm font-semibold hover:bg-yellow transition" href="index.html" target="_blank">View site ↗</a>
+          <button id="logout-btn" class="w-full text-left px-3 py-2 rounded-md text-sm font-semibold text-red-600 hover:bg-red-600 hover:text-white transition" type="button">Log out</button>
+        </nav>
+      </aside>
 
-      <!-- Reels -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">Reels (3 scrolling rows)</h2>
-        <form id="reel-form" class="grid gap-3 max-w-md mb-4">
-          <label class="block">
-            <span class="block text-sm text-[#6E6E6A] mb-1">Row</span>
-            <select name="row" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2">
-              <option value="row1">Row 1</option>
-              <option value="row2">Row 2</option>
-              <option value="row3">Row 3</option>
-            </select>
-          </label>
-          <label class="block">
-            <span class="block text-sm text-[#6E6E6A] mb-1">Video file</span>
-            <input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" />
-          </label>
-          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload reel</button>
-          <p class="text-sm min-h-[1.2em]" id="reel-status"></p>
-        </form>
-        <div id="reel-list" class="grid gap-2"></div>
-      </section>
+      <!-- Main content -->
+      <main class="flex-1 min-w-0">
+        <header class="flex items-center justify-between gap-3 border-b border-[#E8E8E3] px-6 py-4">
+          <h2 id="panel-title" class="text-lg font-extrabold uppercase">Reels</h2>
+          <span id="who" class="text-sm text-[#6E6E6A]"></span>
+        </header>
 
-      <!-- Video testimonials -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">Video testimonials</h2>
-        <form id="vt-form" class="grid gap-3 max-w-md mb-4">
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Name</span><input type="text" name="name" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Instagram handle (optional, no @)</span><input type="text" name="handle" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Followers text (optional)</span><input type="text" name="followers" placeholder="e.g. 124K followers" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Quote (optional)</span><textarea name="quote" rows="2" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2"></textarea></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Duration text</span><input type="text" name="duration" placeholder="e.g. 0:42" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">CSS object-position (optional)</span><input type="text" name="focus" placeholder="e.g. center or 35% center" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Poster image (optional)</span><input type="file" name="poster" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload testimonial</button>
-          <p class="text-sm min-h-[1.2em]" id="vt-status"></p>
-        </form>
-        <div id="vt-list" class="grid gap-2"></div>
-      </section>
+        <div class="px-6 py-6 max-w-3xl">
+          <!-- Reels -->
+          <section class="panel" data-panel="reels">
+            <p class="text-sm text-[#6E6E6A] mb-5">Upload the short video clips that scroll across the homepage in 3 rows.</p>
+            <form id="reel-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field"><span>Row</span>
+                <select name="row" required>
+                  <option value="row1">Row 1</option>
+                  <option value="row2">Row 2</option>
+                  <option value="row3">Row 3</option>
+                </select>
+              </label>
+              <label class="field"><span>Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required /></label>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload reel</button>
+                <p class="text-sm" id="reel-status"></p>
+              </div>
+            </form>
+            <div id="reel-list" class="grid gap-2"></div>
+          </section>
 
-      <!-- Written testimonials -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">Written testimonials</h2>
-        <form id="wt-form" class="grid gap-3 max-w-md mb-4">
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Client name</span><input type="text" name="name" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Quote</span><textarea name="quote" rows="3" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2"></textarea></label>
-          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add testimonial</button>
-          <p class="text-sm min-h-[1.2em]" id="wt-status"></p>
-        </form>
-        <div id="wt-list" class="grid gap-2"></div>
-      </section>
+          <!-- Video testimonials -->
+          <section class="panel" data-panel="video-testimonials">
+            <p class="text-sm text-[#6E6E6A] mb-5">Short video clips of clients talking about working with you.</p>
+            <form id="vt-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field"><span>Name</span><input type="text" name="name" required /></label>
+              <label class="field"><span>Instagram handle (optional, no @)</span><input type="text" name="handle" /></label>
+              <label class="field"><span>Followers text (optional)</span><input type="text" name="followers" placeholder="e.g. 124K followers" /></label>
+              <label class="field"><span>Duration text</span><input type="text" name="duration" placeholder="e.g. 0:42" /></label>
+              <label class="field sm:col-span-2"><span>Quote (optional)</span><textarea name="quote" rows="2"></textarea></label>
+              <label class="field"><span>CSS object-position (optional)</span><input type="text" name="focus" placeholder="e.g. center or 35% center" /></label>
+              <label class="field"><span>Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required /></label>
+              <label class="field sm:col-span-2"><span>Poster image (optional)</span><input type="file" name="poster" accept="image/jpeg,image/png,image/webp" /></label>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload testimonial</button>
+                <p class="text-sm" id="vt-status"></p>
+              </div>
+            </form>
+            <div id="vt-list" class="grid gap-2"></div>
+          </section>
 
-      <!-- Before / after -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">Before &amp; after results</h2>
-        <form id="ba-form" class="grid gap-3 max-w-md mb-4">
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Client name</span><input type="text" name="client" required class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Handle (optional)</span><input type="text" name="handle" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block">
-            <span class="block text-sm text-[#6E6E6A] mb-1">Stats, one per line as <code>Label|Before|After</code></span>
-            <textarea name="stats" rows="3" placeholder="Followers|1.2K|18K&#10;Avg. views per reel|3K|120K" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2 font-mono text-sm"></textarea>
-          </label>
-          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add result</button>
-          <p class="text-sm min-h-[1.2em]" id="ba-status"></p>
-        </form>
-        <div id="ba-list" class="grid gap-2"></div>
-      </section>
+          <!-- Written testimonials -->
+          <section class="panel" data-panel="written-testimonials">
+            <p class="text-sm text-[#6E6E6A] mb-5">Short text quotes shown in the "What clients say" grid.</p>
+            <form id="wt-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field"><span>Client name</span><input type="text" name="name" required /></label>
+              <label class="field sm:col-span-2"><span>Quote</span><textarea name="quote" rows="3" required></textarea></label>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add testimonial</button>
+                <p class="text-sm" id="wt-status"></p>
+              </div>
+            </form>
+            <div id="wt-list" class="grid gap-2"></div>
+          </section>
 
-      <!-- Process screenshots -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">"How we work" screenshots (optional)</h2>
-        <p class="text-sm text-[#6E6E6A] mb-4">Each step shows a drawn mockup by default. Upload a real screenshot to replace it, or leave empty.</p>
-        <div id="process-slots" class="grid sm:grid-cols-2 gap-4"></div>
-      </section>
+          <!-- Before / after -->
+          <section class="panel" data-panel="before-after">
+            <p class="text-sm text-[#6E6E6A] mb-5">Client growth results shown right under the hero section.</p>
+            <form id="ba-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field"><span>Client name</span><input type="text" name="client" required /></label>
+              <label class="field"><span>Handle (optional)</span><input type="text" name="handle" /></label>
+              <label class="field"><span>Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" /></label>
+              <label class="field"><span>After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" /></label>
+              <label class="field sm:col-span-2">
+                <span>Stats, one per line as Label|Before|After</span>
+                <textarea name="stats" rows="3" placeholder="Followers|1.2K|18K&#10;Avg. views per reel|3K|120K" class="font-mono"></textarea>
+              </label>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add result</button>
+                <p class="text-sm" id="ba-status"></p>
+              </div>
+            </form>
+            <div id="ba-list" class="grid gap-2"></div>
+          </section>
 
-      <!-- Settings -->
-      <section class="bg-[#F6F6F3] border border-[#E8E8E3] rounded-lg p-6 mb-6">
-        <h2 class="text-lg font-extrabold uppercase mb-4">Contact &amp; booking settings</h2>
-        <form id="settings-form" class="grid gap-3 max-w-md">
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">WhatsApp number (digits only, with country code)</span><input type="text" name="whatsapp" placeholder="923248061911" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Messenger link</span><input type="text" name="messenger" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Email</span><input type="email" name="email" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Twitter / X link</span><input type="text" name="twitter" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">LinkedIn link</span><input type="text" name="linkedin" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Booking URL (Calendly etc., optional — falls back to WhatsApp)</span><input type="text" name="bookingUrl" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <label class="block"><span class="block text-sm text-[#6E6E6A] mb-1">Top meta-bar text</span><input type="text" name="metaBarBooking" class="w-full border border-[#E8E8E3] rounded-md px-3 py-2" /></label>
-          <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm py-2.5 rounded-full hover:brightness-95 transition" type="submit">Save settings</button>
-          <p class="text-sm min-h-[1.2em]" id="settings-status"></p>
-        </form>
-      </section>
+          <!-- Process screenshots -->
+          <section class="panel" data-panel="process">
+            <p class="text-sm text-[#6E6E6A] mb-5">Each "how we work" step shows a drawn mockup by default. Upload a real screenshot to replace it, or leave empty.</p>
+            <div id="process-slots" class="grid sm:grid-cols-2 gap-4"></div>
+          </section>
+
+          <!-- Settings -->
+          <section class="panel" data-panel="settings">
+            <p class="text-sm text-[#6E6E6A] mb-5">Contact links, booking button, and the top announcement bar text.</p>
+            <form id="settings-form" class="grid sm:grid-cols-2 gap-4">
+              <label class="field"><span>WhatsApp number (digits only, with country code)</span><input type="text" name="whatsapp" placeholder="923248061911" /></label>
+              <label class="field"><span>Messenger link</span><input type="text" name="messenger" /></label>
+              <label class="field"><span>Email</span><input type="email" name="email" /></label>
+              <label class="field"><span>Twitter / X link</span><input type="text" name="twitter" /></label>
+              <label class="field"><span>LinkedIn link</span><input type="text" name="linkedin" /></label>
+              <label class="field"><span>Booking URL (optional — falls back to WhatsApp)</span><input type="text" name="bookingUrl" /></label>
+              <label class="field sm:col-span-2"><span>Top meta-bar text</span><input type="text" name="metaBarBooking" /></label>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Save settings</button>
+                <p class="text-sm" id="settings-status"></p>
+              </div>
+            </form>
+          </section>
+        </div>
+      </main>
     </div>
 
     <script src="js/admin.js" defer></script>

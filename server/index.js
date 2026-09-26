@@ -424,8 +424,10 @@ app.put(
 );
 
 // ---------- static files (used for local dev / non-Vercel hosts; Vercel
-// serves these directly from its CDN without invoking this function) ----------
-app.use(express.static(ROOT, { index: "index.html" }));
+// serves these directly from its CDN without invoking this function).
+// Only the public/ folder is served — server/ and node_modules/ must
+// never be reachable as static files.
+app.use(express.static(path.join(ROOT, "public"), { index: "index.html" }));
 
 if (require.main === module) {
   app.listen(PORT, () => {

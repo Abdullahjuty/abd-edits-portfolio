@@ -88,6 +88,7 @@
           <section class="panel" data-panel="reels">
             <p class="text-sm text-[#6E6E6A] mb-5">Upload the short video clips that scroll across the homepage in 3 rows.</p>
             <form id="reel-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field sm:col-span-2"><span>Label (for you only — not shown on the site, just helps you tell clips apart in this list)</span><input type="text" name="label" placeholder="e.g. Coffee shop client reel" /></label>
               <label class="field"><span>Row</span>
                 <select name="row" required>
                   <option value="row1">Row 1</option>
@@ -117,12 +118,11 @@
           <section class="panel" data-panel="video-testimonials">
             <p class="text-sm text-[#6E6E6A] mb-5">Short video clips of clients talking about working with you.</p>
             <form id="vt-form" class="grid sm:grid-cols-2 gap-4 mb-6">
+              <label class="field sm:col-span-2"><span>Label (for you only — not shown on the site)</span><input type="text" name="label" placeholder="e.g. Alaric testimonial" /></label>
               <label class="field"><span>Name</span><input type="text" name="name" required /></label>
               <label class="field"><span>Instagram handle (optional, no @)</span><input type="text" name="handle" /></label>
-              <label class="field"><span>Followers text (optional)</span><input type="text" name="followers" placeholder="e.g. 124K followers" /></label>
-              <label class="field"><span>Duration text</span><input type="text" name="duration" placeholder="e.g. 0:42" /></label>
-              <label class="field sm:col-span-2"><span>Quote (optional)</span><textarea name="quote" rows="2"></textarea></label>
-              <label class="field"><span>CSS object-position (optional)</span><input type="text" name="focus" placeholder="e.g. center or 35% center" /></label>
+              <label class="field sm:col-span-2"><span>Followers text (optional)</span><input type="text" name="followers" placeholder="e.g. 124K followers" /></label>
+              <label class="field sm:col-span-2"><span>Text shown below the video (optional)</span><textarea name="quote" rows="2" placeholder="e.g. He's very fast and easy to work with."></textarea></label>
               <label class="field"><span>Aspect ratio</span>
                 <select name="ratio">
                   <option value="9/16">Portrait (9:16)</option>

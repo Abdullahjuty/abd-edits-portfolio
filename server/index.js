@@ -265,11 +265,11 @@ app.post(
   "/api/admin/reels",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { row, src, publicId, ratio } = req.body || {};
+    const { row, src, publicId, ratio, label } = req.body || {};
     if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
     if (!src) return res.status(400).json({ error: "src is required" });
     const content = await readContent();
-    const reel = { id: newId("r"), src, publicId: publicId || "", ratio: sanitizeRatio(ratio) };
+    const reel = { id: newId("r"), src, publicId: publicId || "", ratio: sanitizeRatio(ratio), label: label || "" };
     content.reels[row].push(reel);
     await writeContent(content);
     res.json({ ok: true, row, reel });
@@ -296,11 +296,12 @@ app.post(
   "/api/admin/video-testimonials",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { name, handle, followers, quote, duration, focus, src, publicId, poster, posterPublicId, ratio } = req.body || {};
+    const { label, name, handle, followers, quote, duration, focus, src, publicId, poster, posterPublicId, ratio } = req.body || {};
     if (!name || !src) return res.status(400).json({ error: "Name and src are required" });
     const content = await readContent();
     const testimonial = {
       id: newId("vt"),
+      label: label || "",
       name,
       handle: handle || "",
       followers: followers || "",

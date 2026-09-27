@@ -87,6 +87,26 @@ async function resolveRatio(ratioChoice, file) {
   return ratioChoice === "auto" ? detectVideoRatio(file) : ratioChoice;
 }
 
+// Reads the video's real length client-side instead of asking the admin
+// to type it in (which is exactly the kind of manual, error-prone step
+// worth removing) — formatted the same "m:ss" way it's displayed.
+function detectVideoDuration(file) {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const seconds = video.duration;
+      URL.revokeObjectURL(video.src);
+      if (!isFinite(seconds)) return resolve("");
+      const mins = Math.floor(seconds / 60);
+      const secs = Math.round(seconds % 60).toString().padStart(2, "0");
+      resolve(`${mins}:${secs}`);
+    };
+    video.onerror = () => resolve("");
+    video.src = URL.createObjectURL(file);
+  });
+}
+
 async function uploadToCloudinary(file, folder, resourceType, onProgress) {
   const sig = await api("/api/admin/upload-signature", {
     method: "POST",
@@ -207,6 +227,7 @@ reelForm.addEventListener("submit", async (e) => {
   const row = formData.get("row");
   const file = formData.get("media");
   const ratioChoice = formData.get("ratio");
+  const label = formData.get("label");
   btn.disabled = true;
   reelStatus.textContent = "Uploading… 0%";
   try {
@@ -216,7 +237,7 @@ reelForm.addEventListener("submit", async (e) => {
     });
     await api("/api/admin/reels", {
       method: "POST",
-      body: JSON.stringify({ row, src: media.url, publicId: media.publicId, ratio }),
+      body: JSON.stringify({ row, src: media.url, publicId: media.publicId, ratio, label }),
       headers: { "Content-Type": "application/json" },
     });
     reelStatus.textContent = "✅ Uploaded successfully.";
@@ -233,7 +254,7 @@ function renderReels(reels) {
   reelList.innerHTML = "";
   ["row1", "row2", "row3"].forEach((row) => {
     (reels[row] || []).forEach((r) => {
-      deleteRow(reelList, `[${row}] reel`, () =>
+      deleteRow(reelList, `[${row}] ${r.label || "(untitled reel)"}`, () =>
         api(`/api/admin/reels/${row}/${r.id}`, { method: "DELETE" })
       );
     });
@@ -254,7 +275,10 @@ vtForm.addEventListener("submit", async (e) => {
   const ratioChoice = formData.get("ratio");
   btn.disabled = true;
   try {
-    const ratio = await resolveRatio(ratioChoice, mediaFile);
+    const [ratio, duration] = await Promise.all([
+      resolveRatio(ratioChoice, mediaFile),
+      detectVideoDuration(mediaFile),
+    ]);
     vtStatus.textContent = "Uploading video… 0%";
     const media = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
       vtStatus.textContent = `Uploading video… ${pct}%`;
@@ -272,12 +296,12 @@ vtForm.addEventListener("submit", async (e) => {
     await api("/api/admin/video-testimonials", {
       method: "POST",
       body: JSON.stringify({
+        label: formData.get("label"),
         name: formData.get("name"),
         handle: formData.get("handle"),
         followers: formData.get("followers"),
         quote: formData.get("quote"),
-        duration: formData.get("duration"),
-        focus: formData.get("focus"),
+        duration,
         src: media.url,
         publicId: media.publicId,
         poster,
@@ -299,7 +323,8 @@ vtForm.addEventListener("submit", async (e) => {
 function renderVideoTestimonials(list) {
   vtList.innerHTML = "";
   list.forEach((t) => {
-    deleteRow(vtList, `${t.name} — ${t.quote ? t.quote.slice(0, 40) : "(no quote)"}`, () =>
+    const label = t.label ? `${t.label} — ` : "";
+    deleteRow(vtList, `${label}${t.name} — ${t.quote ? t.quote.slice(0, 40) : "(no text)"}`, () =>
       api(`/api/admin/video-testimonials/${t.id}`, { method: "DELETE" })
     );
   });

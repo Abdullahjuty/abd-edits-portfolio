@@ -316,9 +316,11 @@
     border:1px solid var(--border);
     position:relative;
     overflow:hidden;
+    cursor:pointer;
     transition:transform .35s var(--ease), border-color .35s var(--ease);
   }
-  .tile:hover{transform:translateY(-4px); border-color:var(--yellow-dim);}
+  .tile:hover{transform:translateY(-4px) scale(1.06); border-color:var(--yellow-dim); z-index:2;}
+  @media (prefers-reduced-motion: reduce){.tile:hover{transform:none;}}
   .tile.alt{background:var(--card-alt);}
   .tile video, .tile img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
   .tile .play{
@@ -507,16 +509,31 @@
   .ba-home{background:var(--yellow); border-top:none; padding:64px 0 72px; text-align:center;}
   .ba-home h2{font-size:clamp(24px,4vw,42px); font-weight:800; text-transform:uppercase; letter-spacing:-0.01em; line-height:1.1; margin:0 0 8px; text-wrap:balance;}
   .ba-home .ba-sub{font-size:clamp(14px,1.6vw,17px); color:rgba(17,17,17,0.72); margin:0 0 36px;}
-  .bah-grid{display:grid; gap:16px; text-align:left;}
-  @media(min-width:760px){.bah-grid{grid-template-columns:repeat(3,1fr);}}
-  .bah-card{background:var(--bg); border-radius:var(--radius); padding:16px; box-shadow:0 1px 0 rgba(17,17,17,0.08);}
+  /* Continuous right-to-left marquee — identical technique to the reels
+     rows above: the track's contents are duplicated once in JS and
+     animated from translateX(0) to translateX(-50%) on a loop, so a
+     card scrolling off the left edge is always mid-loop through the
+     second copy, never an abrupt jump, regardless of how many results
+     exist (1, 2, or many). */
+  .bah-grid{overflow:hidden; width:100%; text-align:left; container-type:inline-size; --gap:16px; --per:3;}
+  @media(max-width:760px){.bah-grid{--per:1; --gap:12px;}}
+  .bah-grid:hover .bah-track{animation-play-state:paused;}
+  .bah-track{display:flex; align-items:flex-start; width:max-content; animation:scroll-left 42s linear infinite;}
+  @media (prefers-reduced-motion: reduce){.bah-track{animation:none;}}
+  .bah-card{
+    flex:0 0 calc((100cqw - (var(--per) - 1) * var(--gap)) / var(--per));
+    margin-right:var(--gap);
+    background:var(--bg); border-radius:var(--radius); padding:16px; box-shadow:0 1px 0 rgba(17,17,17,0.08);
+  }
   .bah-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 12px;}
   .bah-name{font-size:15px; font-weight:700; margin:0;}
   .bah-handle{font-size:12px; color:var(--text-secondary);}
   .bah-shots{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 14px;}
   .bah-shot{position:relative; aspect-ratio:9/16; background:var(--card-alt); border-radius:6px; overflow:hidden; border:0; padding:0; cursor:zoom-in;}
-  .bah-video{position:relative; background:var(--card-alt); border-radius:6px; overflow:hidden; margin:0 0 14px;}
-  .bah-video video{width:100%; height:100%; object-fit:cover; display:block;}
+  .bah-video{position:relative; background:var(--card-alt); border-radius:6px; overflow:hidden; margin:0 0 14px; cursor:pointer;}
+  .bah-video video{width:100%; height:100%; object-fit:cover; display:block; transition:transform .35s var(--ease);}
+  .bah-video:hover video{transform:scale(1.06);}
+  @media (prefers-reduced-motion: reduce){.bah-video:hover video{transform:none;}}
   .bah-shot img{width:100%; height:100%; object-fit:cover; object-position:top;}
   .bah-shot.empty{cursor:default; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-secondary); text-align:center; padding:8px;}
   .bah-tag{position:absolute; top:8px; left:8px; font-size:11px; font-weight:800; text-transform:uppercase; padding:4px 8px; border-radius:4px; background:#fff; color:var(--text);}
@@ -531,6 +548,14 @@
   .shot-viewer.open{display:flex;}
   .shot-viewer img{max-height:88vh; width:auto; border-radius:var(--radius);}
   .shot-viewer button{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:0; background:var(--yellow); font-size:22px; font-weight:700; cursor:pointer;}
+  /* Large-in-page video viewer — a bigger view on top of the page, not
+     the browser's real Fullscreen API (which hides the address bar and
+     feels jarring on mobile); same overlay pattern as the screenshot
+     viewer above. */
+  .video-viewer{position:fixed; inset:0; z-index:1000; background:rgba(17,17,17,0.9); display:none; align-items:center; justify-content:center; padding:24px;}
+  .video-viewer.open{display:flex;}
+  .video-viewer video{max-height:88vh; max-width:min(90vw,700px); width:auto; height:auto; border-radius:var(--radius); background:#000;}
+  .video-viewer button{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:0; background:var(--yellow); font-size:22px; font-weight:700; cursor:pointer; z-index:1;}
   .ba-home h2{font-family:'Montserrat','Poppins',sans-serif; font-weight:800; letter-spacing:0;}
 
   .scrub-bar{position:fixed; top:0; left:0; right:0; height:3px; background:var(--text); transform-origin:left; transform:scaleX(0); z-index:60; pointer-events:none;}
@@ -571,10 +596,16 @@
   .shot-viewer img{transform:scale(.94); transition:transform .4s var(--ease);}
   .shot-viewer.open img{transform:none;}
 
+  .video-viewer{display:flex; visibility:hidden; opacity:0; transition:opacity .25s ease, visibility 0s linear .25s;}
+  .video-viewer.open{visibility:visible; opacity:1; transition:opacity .25s ease;}
+  .video-viewer video{transform:scale(.94); transition:transform .4s var(--ease);}
+  .video-viewer.open video{transform:none;}
+
   @media (prefers-reduced-motion: reduce){
     .tile::after, .t-card::after, .tile:hover::after, .t-card:hover::after{transition:none;}
     .book-btn:hover::before, .book-btn:focus-visible::before{animation:none;}
     .shot-viewer, .shot-viewer img{transition:none;}
+    .video-viewer, .video-viewer video{transition:none;}
   }
 
   .how{background:var(--yellow); border-top:none; padding:0; text-align:center;}
@@ -779,6 +810,11 @@
   <img alt="">
 </div>
 
+<div class="video-viewer" id="videoViewer" role="dialog" aria-modal="true" aria-label="Video">
+  <button type="button" aria-label="Close">×</button>
+  <video controls playsinline></video>
+</div>
+
 <section class="proof" id="work">
   <div class="wrap reveal">
     <p class="label">Short-form content we've edited</p>
@@ -952,6 +988,54 @@
   viewer.addEventListener('click', (e) => { if (e.target === viewer) shutViewer(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.classList.contains('open')) shutViewer(); });
 
+  /* -----------------------------------------------------------------
+     Video lightbox — clicking any reel tile or before/after video opens
+     it here: larger, unmuted, with sound and native controls. This is
+     an on-page overlay, not the browser's real Fullscreen API — that
+     hides the address bar and feels jarring, especially on mobile.
+     ----------------------------------------------------------------- */
+  const videoViewer = document.getElementById('videoViewer');
+  const videoViewerVideo = videoViewer.querySelector('video');
+  const videoViewerClose = videoViewer.querySelector('button');
+  let lastVideoFocus = null;
+
+  function openVideoViewer(src, triggerEl) {
+    if (!src) return;
+    lastVideoFocus = triggerEl || null;
+    videoViewerVideo.src = src;
+    videoViewerVideo.muted = false;
+    videoViewer.classList.add('open');
+    videoViewerVideo.play().catch(() => {});
+    videoViewerClose.focus();
+  }
+  function shutVideoViewer() {
+    videoViewer.classList.remove('open');
+    videoViewerVideo.pause();
+    videoViewerVideo.removeAttribute('src');
+    videoViewerVideo.load();
+    if (lastVideoFocus) lastVideoFocus.focus();
+  }
+  videoViewerClose.addEventListener('click', shutVideoViewer);
+  videoViewer.addEventListener('click', (e) => { if (e.target === videoViewer) shutVideoViewer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && videoViewer.classList.contains('open')) shutVideoViewer(); });
+
+  // Reel tiles (all 3 marquee rows) — one delegated listener covers
+  // every tile, including ones added later when content loads.
+  document.querySelector('.proof').addEventListener('click', (e) => {
+    const tile = e.target.closest('.tile');
+    if (!tile) return;
+    const video = tile.querySelector('video');
+    if (!video) return;
+    openVideoViewer(video.currentSrc || video.src || video.dataset.src, tile);
+  });
+
+  // Before/after videos use the same lightbox for consistency.
+  document.getElementById('bahGrid').addEventListener('click', (e) => {
+    const baVideo = e.target.closest('.bah-video video');
+    if (!baVideo) return;
+    openVideoViewer(baVideo.currentSrc || baVideo.src, baVideo);
+  });
+
   /* ---------------------------------------------------------------
      Everything below renders from /api/content — the admin panel is
      what actually populates these; nothing here is hardcoded content.
@@ -1049,14 +1133,22 @@
       ? `<button type="button" class="bah-shot ${kind}" data-src="${esc(src)}" aria-label="View ${kind} screenshot for ${esc(name)}"><img src="${esc(src)}" alt="${esc(name)} ${kind}" loading="lazy"><span class="bah-tag">${kind}</span></button>`
       : `<div class="bah-shot ${kind} empty"><span class="bah-tag">${kind}</span>Add ${kind} screenshot</div>`;
     const media = (c) => c.type === 'video'
-      ? `<div class="bah-video" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted loop playsinline preload="metadata" controls></video></div>`
+      ? `<div class="bah-video" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted loop autoplay playsinline preload="metadata"></video></div>`
       : `<div class="bah-shots">${shot(c.before, 'before', c.client || 'client')}${shot(c.after, 'after', c.client || 'client')}</div>`;
-    grid.innerHTML = list.map((c) => `
+    const cardHtml = (c) => `
       <article class="bah-card">
         ${c.client ? `<div class="bah-head"><p class="bah-name">${esc(c.client)}</p><span class="bah-handle">${esc(c.handle)}</span></div>` : ''}
         ${media(c)}
         <ul class="bah-stats">${(c.stats || []).map(({ label, beforeVal, afterVal }) => `<li><span>${esc(label)}</span><b>${esc(beforeVal)} → <em data-from="${esc(beforeVal)}" data-to="${esc(afterVal)}">${esc(MOTION ? beforeVal : afterVal)}</em></b></li>`).join('')}</ul>
-      </article>`).join('');
+      </article>`;
+    // Duplicated once — same seamless-loop technique as the reels rows,
+    // so the marquee scrolls continuously no matter how many results
+    // there are (1, 2, or many).
+    const track = document.createElement('div');
+    track.className = 'bah-track';
+    track.innerHTML = list.map(cardHtml).join('') + list.map(cardHtml).join('');
+    grid.innerHTML = '';
+    grid.appendChild(track);
     if (!MOTION || !('IntersectionObserver' in window)) return;
     const parseNum = (s) => {
       const m = String(s).trim().match(/^([\d.,]+)\s*([KkMm]?)$/);

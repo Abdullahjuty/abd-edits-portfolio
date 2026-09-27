@@ -288,6 +288,11 @@
   .proof-track{
     display:flex;
     width:max-content;
+    /* Without this, flex's default stretch alignment forces every tile
+       to the row's tallest height, silently overriding each tile's own
+       aspect-ratio (landscape/square/auto clips would get squashed to
+       match neighboring portrait ones). */
+    align-items:flex-start;
   }
   .proof-track.left{animation:scroll-left 40s linear infinite;}
   .proof-track.right{animation:scroll-right 40s linear infinite;}
@@ -955,7 +960,8 @@
     if (!list.length) { row.innerHTML = ''; return; }
     const makeTiles = () => list.map((clip, i) => {
       const alt = i % 2 === 1 ? ' alt' : '';
-      return `<div class="tile${alt}"><video src="${esc(clip.src)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
+      const ratio = esc(clip.ratio || '9/16');
+      return `<div class="tile${alt}" style="aspect-ratio:${ratio}"><video src="${esc(clip.src)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
     }).join('');
     row.innerHTML = makeTiles() + makeTiles();
     row.querySelectorAll('.tile').forEach((t, i) => { if (i >= list.length) t.setAttribute('aria-hidden', 'true'); });
@@ -973,7 +979,7 @@
       const h = (t.handle || '').replace('@', '');
       const who = h ? `<a href="https://instagram.com/${esc(h)}" target="_blank" rel="noopener">@${esc(h)}</a>` : esc(t.name);
       card.innerHTML = `
-        <div class="tv-player">
+        <div class="tv-player" style="aspect-ratio:${esc(t.ratio || '9/16')}">
           <video preload="none" playsinline poster="${esc(t.poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)})">
             <span class="tv-big">${tvPlaySvg}</span>

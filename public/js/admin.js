@@ -66,6 +66,27 @@ function uploadWithProgress(url, formData, method, onProgress, withCredentials) 
 // signature. This matters because serverless hosts cap a function's
 // request body at a few MB, far too small for video, and it's also just
 // faster: one hop instead of two.
+// "Auto" ratio reads the file's real dimensions client-side (via a
+// throwaway <video> element) instead of guessing — this runs once at
+// upload time so the site never has to detect it later.
+function detectVideoRatio(file) {
+  return new Promise((resolve) => {
+    const video = document.createElement("video");
+    video.preload = "metadata";
+    video.onloadedmetadata = () => {
+      const { videoWidth, videoHeight } = video;
+      URL.revokeObjectURL(video.src);
+      resolve(videoWidth && videoHeight ? `${videoWidth}/${videoHeight}` : "9/16");
+    };
+    video.onerror = () => resolve("9/16");
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+async function resolveRatio(ratioChoice, file) {
+  return ratioChoice === "auto" ? detectVideoRatio(file) : ratioChoice;
+}
+
 async function uploadToCloudinary(file, folder, resourceType, onProgress) {
   const sig = await api("/api/admin/upload-signature", {
     method: "POST",
@@ -185,15 +206,17 @@ reelForm.addEventListener("submit", async (e) => {
   const formData = new FormData(reelForm);
   const row = formData.get("row");
   const file = formData.get("media");
+  const ratioChoice = formData.get("ratio");
   btn.disabled = true;
   reelStatus.textContent = "Uploading… 0%";
   try {
+    const ratio = await resolveRatio(ratioChoice, file);
     const media = await uploadToCloudinary(file, "abd-edits/reels", "video", (pct) => {
       reelStatus.textContent = `Uploading… ${pct}%`;
     });
     await api("/api/admin/reels", {
       method: "POST",
-      body: JSON.stringify({ row, src: media.url, publicId: media.publicId }),
+      body: JSON.stringify({ row, src: media.url, publicId: media.publicId, ratio }),
       headers: { "Content-Type": "application/json" },
     });
     reelStatus.textContent = "✅ Uploaded successfully.";
@@ -228,8 +251,10 @@ vtForm.addEventListener("submit", async (e) => {
   const formData = new FormData(vtForm);
   const mediaFile = formData.get("media");
   const posterFile = formData.get("poster");
+  const ratioChoice = formData.get("ratio");
   btn.disabled = true;
   try {
+    const ratio = await resolveRatio(ratioChoice, mediaFile);
     vtStatus.textContent = "Uploading video… 0%";
     const media = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
       vtStatus.textContent = `Uploading video… ${pct}%`;
@@ -257,6 +282,7 @@ vtForm.addEventListener("submit", async (e) => {
         publicId: media.publicId,
         poster,
         posterPublicId,
+        ratio,
       }),
       headers: { "Content-Type": "application/json" },
     });

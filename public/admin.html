@@ -95,6 +95,15 @@
                   <option value="row3">Row 3</option>
                 </select>
               </label>
+              <label class="field"><span>Aspect ratio</span>
+                <select name="ratio">
+                  <option value="9/16">Portrait (9:16)</option>
+                  <option value="16/9">Landscape (16:9)</option>
+                  <option value="1/1">Square (1:1)</option>
+                  <option value="4/5">Portrait (4:5)</option>
+                  <option value="auto">Auto (match original video)</option>
+                </select>
+              </label>
               <label class="field"><span>Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required /></label>
               <div class="sm:col-span-2 flex items-center gap-3">
                 <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Upload reel</button>
@@ -114,6 +123,15 @@
               <label class="field"><span>Duration text</span><input type="text" name="duration" placeholder="e.g. 0:42" /></label>
               <label class="field sm:col-span-2"><span>Quote (optional)</span><textarea name="quote" rows="2"></textarea></label>
               <label class="field"><span>CSS object-position (optional)</span><input type="text" name="focus" placeholder="e.g. center or 35% center" /></label>
+              <label class="field"><span>Aspect ratio</span>
+                <select name="ratio">
+                  <option value="9/16">Portrait (9:16)</option>
+                  <option value="16/9">Landscape (16:9)</option>
+                  <option value="1/1">Square (1:1)</option>
+                  <option value="4/5">Portrait (4:5)</option>
+                  <option value="auto">Auto (match original video)</option>
+                </select>
+              </label>
               <label class="field"><span>Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required /></label>
               <label class="field sm:col-span-2"><span>Poster image (optional)</span><input type="file" name="poster" accept="image/jpeg,image/png,image/webp" /></label>
               <div class="sm:col-span-2 flex items-center gap-3">

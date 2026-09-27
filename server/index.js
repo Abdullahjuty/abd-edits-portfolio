@@ -170,6 +170,15 @@ async function destroyCloudinaryAsset(publicId, resourceType) {
   }
 }
 
+// Accepts a CSS aspect-ratio value like "16/9" (preset or detected from
+// the real video dimensions client-side) — validated so a bad/missing
+// value can't break the layout, falling back to the site's original
+// portrait default.
+function sanitizeRatio(ratio) {
+  if (typeof ratio === "string" && /^\d+(\.\d+)?\/\d+(\.\d+)?$/.test(ratio.trim())) return ratio.trim();
+  return "9/16";
+}
+
 function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -256,11 +265,11 @@ app.post(
   "/api/admin/reels",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { row, src, publicId } = req.body || {};
+    const { row, src, publicId, ratio } = req.body || {};
     if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
     if (!src) return res.status(400).json({ error: "src is required" });
     const content = await readContent();
-    const reel = { id: newId("r"), src, publicId: publicId || "" };
+    const reel = { id: newId("r"), src, publicId: publicId || "", ratio: sanitizeRatio(ratio) };
     content.reels[row].push(reel);
     await writeContent(content);
     res.json({ ok: true, row, reel });
@@ -287,7 +296,7 @@ app.post(
   "/api/admin/video-testimonials",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { name, handle, followers, quote, duration, focus, src, publicId, poster, posterPublicId } = req.body || {};
+    const { name, handle, followers, quote, duration, focus, src, publicId, poster, posterPublicId, ratio } = req.body || {};
     if (!name || !src) return res.status(400).json({ error: "Name and src are required" });
     const content = await readContent();
     const testimonial = {
@@ -302,6 +311,7 @@ app.post(
       publicId: publicId || "",
       poster: poster || "",
       posterPublicId: posterPublicId || "",
+      ratio: sanitizeRatio(ratio),
     };
     content.videoTestimonials.push(testimonial);
     await writeContent(content);

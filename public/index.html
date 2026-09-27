@@ -515,6 +515,8 @@
   .bah-handle{font-size:12px; color:var(--text-secondary);}
   .bah-shots{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 14px;}
   .bah-shot{position:relative; aspect-ratio:9/16; background:var(--card-alt); border-radius:6px; overflow:hidden; border:0; padding:0; cursor:zoom-in;}
+  .bah-video{position:relative; background:var(--card-alt); border-radius:6px; overflow:hidden; margin:0 0 14px;}
+  .bah-video video{width:100%; height:100%; object-fit:cover; display:block;}
   .bah-shot img{width:100%; height:100%; object-fit:cover; object-position:top;}
   .bah-shot.empty{cursor:default; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-secondary); text-align:center; padding:8px;}
   .bah-tag{position:absolute; top:8px; left:8px; font-size:11px; font-weight:800; text-transform:uppercase; padding:4px 8px; border-radius:4px; background:#fff; color:var(--text);}
@@ -1046,10 +1048,13 @@
     const shot = (src, kind, name) => src
       ? `<button type="button" class="bah-shot ${kind}" data-src="${esc(src)}" aria-label="View ${kind} screenshot for ${esc(name)}"><img src="${esc(src)}" alt="${esc(name)} ${kind}" loading="lazy"><span class="bah-tag">${kind}</span></button>`
       : `<div class="bah-shot ${kind} empty"><span class="bah-tag">${kind}</span>Add ${kind} screenshot</div>`;
+    const media = (c) => c.type === 'video'
+      ? `<div class="bah-video" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted loop playsinline preload="metadata" controls></video></div>`
+      : `<div class="bah-shots">${shot(c.before, 'before', c.client || 'client')}${shot(c.after, 'after', c.client || 'client')}</div>`;
     grid.innerHTML = list.map((c) => `
       <article class="bah-card">
         ${c.client ? `<div class="bah-head"><p class="bah-name">${esc(c.client)}</p><span class="bah-handle">${esc(c.handle)}</span></div>` : ''}
-        <div class="bah-shots">${shot(c.before, 'before', c.client || 'client')}${shot(c.after, 'after', c.client || 'client')}</div>
+        ${media(c)}
         <ul class="bah-stats">${(c.stats || []).map(({ label, beforeVal, afterVal }) => `<li><span>${esc(label)}</span><b>${esc(beforeVal)} → <em data-from="${esc(beforeVal)}" data-to="${esc(afterVal)}">${esc(MOTION ? beforeVal : afterVal)}</em></b></li>`).join('')}</ul>
       </article>`).join('');
     if (!MOTION || !('IntersectionObserver' in window)) return;

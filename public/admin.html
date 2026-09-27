@@ -162,8 +162,28 @@
             <form id="ba-form" class="grid sm:grid-cols-2 gap-4 mb-6">
               <label class="field"><span>Client name</span><input type="text" name="client" required /></label>
               <label class="field"><span>Handle (optional)</span><input type="text" name="handle" /></label>
-              <label class="field"><span>Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" /></label>
-              <label class="field"><span>After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" /></label>
+              <label class="field sm:col-span-2"><span>Show this result as</span>
+                <select name="baType" id="ba-type">
+                  <option value="images">Two screenshots (before + after)</option>
+                  <option value="video">One video (shows before &amp; after together)</option>
+                </select>
+              </label>
+              <div id="ba-images-fields" class="contents">
+                <label class="field"><span>Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" /></label>
+                <label class="field"><span>After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" /></label>
+              </div>
+              <div id="ba-video-fields" class="contents" hidden>
+                <label class="field"><span>Before/after video</span><input type="file" name="video" accept="video/mp4,video/webm,video/quicktime" /></label>
+                <label class="field"><span>Aspect ratio</span>
+                  <select name="baRatio">
+                    <option value="9/16">Portrait (9:16)</option>
+                    <option value="16/9">Landscape (16:9)</option>
+                    <option value="1/1">Square (1:1)</option>
+                    <option value="4/5">Portrait (4:5)</option>
+                    <option value="auto">Auto (match original video)</option>
+                  </select>
+                </label>
+              </div>
               <label class="field sm:col-span-2">
                 <span>Stats, one per line as Label|Before|After</span>
                 <textarea name="stats" rows="3" placeholder="Followers|1.2K|18K&#10;Avg. views per reel|3K|120K" class="font-mono"></textarea>

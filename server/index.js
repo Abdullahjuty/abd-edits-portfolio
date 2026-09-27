@@ -367,8 +367,10 @@ app.post(
   "/api/admin/before-after",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { client, handle, stats, before, beforePublicId, after, afterPublicId } = req.body || {};
+    const { client, handle, stats, type, before, beforePublicId, after, afterPublicId, video, videoPublicId, ratio } = req.body || {};
     if (!client) return res.status(400).json({ error: "Client name is required" });
+    const entryType = type === "video" ? "video" : "images";
+    if (entryType === "video" && !video) return res.status(400).json({ error: "video is required for a video result" });
 
     // stats textarea format: one "Label|beforeVal|afterVal" per line.
     // Stored as an array of objects, not an array of arrays — Firestore
@@ -384,10 +386,14 @@ app.post(
       id: newId("ba"),
       client,
       handle: handle || "",
-      before: before || "",
-      beforePublicId: beforePublicId || "",
-      after: after || "",
-      afterPublicId: afterPublicId || "",
+      type: entryType,
+      before: entryType === "images" ? before || "" : "",
+      beforePublicId: entryType === "images" ? beforePublicId || "" : "",
+      after: entryType === "images" ? after || "" : "",
+      afterPublicId: entryType === "images" ? afterPublicId || "" : "",
+      video: entryType === "video" ? video : "",
+      videoPublicId: entryType === "video" ? videoPublicId || "" : "",
+      ratio: entryType === "video" ? sanitizeRatio(ratio) : "",
       stats: parsedStats,
     };
     content.beforeAfter.push(entry);
@@ -405,8 +411,12 @@ app.delete(
     content.beforeAfter = content.beforeAfter.filter((b) => b.id !== req.params.id);
     await writeContent(content);
     if (entry) {
-      await destroyCloudinaryAsset(entry.beforePublicId, "image");
-      await destroyCloudinaryAsset(entry.afterPublicId, "image");
+      if (entry.type === "video") {
+        await destroyCloudinaryAsset(entry.videoPublicId, "video");
+      } else {
+        await destroyCloudinaryAsset(entry.beforePublicId, "image");
+        await destroyCloudinaryAsset(entry.afterPublicId, "image");
+      }
     }
     res.json({ ok: true });
   })

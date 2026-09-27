@@ -282,33 +282,41 @@
   }
 
   .proof{padding:56px 0; overflow:hidden;}
-  .proof-row{overflow:hidden; width:100%; margin-bottom:12px; container-type:inline-size; --gap:12px; --per:5;}
-  @media(max-width:600px){.proof-row{--per:3; --gap:8px;}}
+  .proof-row{overflow:hidden; width:100%; margin-bottom:12px; --gap:12px;}
+  @media(max-width:600px){.proof-row{--gap:8px;}}
   .proof-row:hover .proof-track{animation-play-state:paused;}
+  /* width/duration are set dynamically per-row in JS (see setupMarquee):
+     a fixed card width lets us compute exactly how many times the list
+     must repeat so the track is always at least 2x the viewport wide —
+     otherwise, with only 1-2 real items on a wide screen, the row runs
+     out of content and a visible gap opens up where a clip should be
+     entering. --shift is the distance one full pass through the
+     original (non-repeated) list covers, so the loop is seamless
+     regardless of how many times it had to repeat. */
   .proof-track{
     display:flex;
     width:max-content;
+    animation:marquee-left var(--duration,40s) linear infinite;
     /* Without this, flex's default stretch alignment forces every tile
        to the row's tallest height, silently overriding each tile's own
        aspect-ratio (landscape/square/auto clips would get squashed to
        match neighboring portrait ones). */
     align-items:flex-start;
   }
-  .proof-track.left{animation:scroll-left 40s linear infinite;}
-  .proof-track.right{animation:scroll-right 40s linear infinite;}
-  @keyframes scroll-left{
+  .proof-track.right{animation-name:marquee-right;}
+  @keyframes marquee-left{
     from{transform:translateX(0);}
-    to{transform:translateX(-50%);}
+    to{transform:translateX(var(--shift,-50%));}
   }
-  @keyframes scroll-right{
-    from{transform:translateX(-50%);}
+  @keyframes marquee-right{
+    from{transform:translateX(var(--shift,-50%));}
     to{transform:translateX(0);}
   }
   @media (prefers-reduced-motion: reduce){
-    .proof-track.left, .proof-track.right{animation:none;}
+    .proof-track{animation:none;}
   }
   .tile{
-    flex:0 0 calc((100cqw - (var(--per) - 1) * var(--gap)) / var(--per));
+    flex:0 0 var(--card-w,180px);
     margin-right:var(--gap);
     aspect-ratio:9/16;
     border-radius:var(--radius);
@@ -319,6 +327,7 @@
     cursor:pointer;
     transition:transform .35s var(--ease), border-color .35s var(--ease);
   }
+  @media(max-width:600px){:root{--card-w:135px;}}
   .tile:hover{transform:translateY(-4px) scale(1.06); border-color:var(--yellow-dim); z-index:2;}
   @media (prefers-reduced-motion: reduce){.tile:hover{transform:none;}}
   .tile.alt{background:var(--card-alt);}
@@ -515,16 +524,20 @@
      card scrolling off the left edge is always mid-loop through the
      second copy, never an abrupt jump, regardless of how many results
      exist (1, 2, or many). */
-  .bah-grid{overflow:hidden; width:100%; text-align:left; container-type:inline-size; --gap:16px; --per:3;}
-  @media(max-width:760px){.bah-grid{--per:1; --gap:12px;}}
+  .bah-grid{overflow:hidden; width:100%; text-align:left; --gap:16px;}
+  @media(max-width:760px){.bah-grid{--gap:12px;}}
   .bah-grid:hover .bah-track{animation-play-state:paused;}
-  .bah-track{display:flex; align-items:flex-start; width:max-content; animation:scroll-left 42s linear infinite;}
+  /* Same dynamic-repeat marquee as the reels rows — see the comment on
+     .proof-track for why a fixed card width + JS-computed repeat count
+     is what actually prevents the gap bug, not just "duplicate once". */
+  .bah-track{display:flex; align-items:flex-start; width:max-content; animation:marquee-left var(--duration,42s) linear infinite;}
   @media (prefers-reduced-motion: reduce){.bah-track{animation:none;}}
   .bah-card{
-    flex:0 0 calc((100cqw - (var(--per) - 1) * var(--gap)) / var(--per));
+    flex:0 0 var(--bah-card-w,300px);
     margin-right:var(--gap);
     background:var(--bg); border-radius:var(--radius); padding:16px; box-shadow:0 1px 0 rgba(17,17,17,0.08);
   }
+  @media(max-width:760px){:root{--bah-card-w:82vw;}}
   .bah-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 12px;}
   .bah-name{font-size:15px; font-weight:700; margin:0;}
   .bah-handle{font-size:12px; color:var(--text-secondary);}
@@ -1041,16 +1054,42 @@
      what actually populates these; nothing here is hardcoded content.
      --------------------------------------------------------------- */
 
+  // Constant visual speed (px/sec) for every marquee on the page, so a
+  // row with 3 items and a row with 20 feel the same speed rather than
+  // one crawling and one racing.
+  const MARQUEE_SPEED_PX_PER_SEC = 90;
+
+  // Shared by the reels rows and the before/after row. A naive "just
+  // duplicate the list once" marquee only avoids a visible gap when the
+  // duplicated content is already at least as wide as the viewport —
+  // with only 1-2 real items on a wide/desktop screen, that's false,
+  // and a clip exits on the left with nothing queued to enter on the
+  // right. Repeating the list enough times to cover 2x the viewport
+  // width fixes this for any combination of item count and screen
+  // size, and the --shift is sized to exactly one pass through the
+  // original list, so the loop point is always seamless.
+  function setupMarquee(trackEl, itemHtmlList, cardWidthPx, gapPx) {
+    if (!itemHtmlList.length) { trackEl.innerHTML = ''; return; }
+    const oneListWidth = itemHtmlList.length * (cardWidthPx + gapPx);
+    const containerWidth = (trackEl.parentElement && trackEl.parentElement.clientWidth) || window.innerWidth || 1200;
+    const repeats = Math.max(2, Math.ceil((containerWidth * 2) / oneListWidth));
+    trackEl.innerHTML = itemHtmlList.join('').repeat(repeats);
+    trackEl.style.setProperty('--shift', `-${100 / repeats}%`);
+    trackEl.style.setProperty('--duration', `${oneListWidth / MARQUEE_SPEED_PX_PER_SEC}s`);
+    [...trackEl.children].forEach((child, i) => { if (i >= itemHtmlList.length) child.setAttribute('aria-hidden', 'true'); });
+  }
+
   function buildRow(rowId, list) {
     const row = document.getElementById(rowId);
-    if (!list.length) { row.innerHTML = ''; return; }
-    const makeTiles = () => list.map((clip, i) => {
+    const mobile = window.innerWidth <= 600;
+    const cardW = mobile ? 135 : 180;
+    const gap = mobile ? 8 : 12;
+    const tiles = list.map((clip, i) => {
       const alt = i % 2 === 1 ? ' alt' : '';
       const ratio = esc(clip.ratio || '9/16');
       return `<div class="tile${alt}" style="aspect-ratio:${ratio}"><video src="${esc(clip.src)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
-    }).join('');
-    row.innerHTML = makeTiles() + makeTiles();
-    row.querySelectorAll('.tile').forEach((t, i) => { if (i >= list.length) t.setAttribute('aria-hidden', 'true'); });
+    });
+    setupMarquee(row, tiles, cardW, gap);
   }
 
   const tvPlaySvg = `<svg viewBox="0 0 20 22" aria-hidden="true"><path d="M2 1.5v19l17-9.5z" fill="#fff"/></svg>`;
@@ -1141,14 +1180,14 @@
         ${media(c)}
         <ul class="bah-stats">${(c.stats || []).map(({ label, beforeVal, afterVal }) => `<li><span>${esc(label)}</span><b>${esc(beforeVal)} → <em data-from="${esc(beforeVal)}" data-to="${esc(afterVal)}">${esc(MOTION ? beforeVal : afterVal)}</em></b></li>`).join('')}</ul>
       </article>`;
-    // Duplicated once — same seamless-loop technique as the reels rows,
-    // so the marquee scrolls continuously no matter how many results
-    // there are (1, 2, or many).
+    const mobile = window.innerWidth <= 760;
+    const cardW = mobile ? window.innerWidth * 0.82 : 300;
+    const gap = mobile ? 12 : 16;
     const track = document.createElement('div');
     track.className = 'bah-track';
-    track.innerHTML = list.map(cardHtml).join('') + list.map(cardHtml).join('');
     grid.innerHTML = '';
     grid.appendChild(track);
+    setupMarquee(track, list.map(cardHtml), cardW, gap);
     if (!MOTION || !('IntersectionObserver' in window)) return;
     const parseNum = (s) => {
       const m = String(s).trim().match(/^([\d.,]+)\s*([KkMm]?)$/);
@@ -1217,16 +1256,38 @@
     if (metaEl && settings.metaBarBooking) metaEl.textContent = settings.metaBarBooking;
   }
 
+  let lastReels = null;
+  let lastBeforeAfter = null;
+
+  function rebuildMarquees() {
+    if (!lastReels) return;
+    buildRow('row1', lastReels.row1 || []);
+    buildRow('row2', lastReels.row2 || []);
+    buildRow('row3', lastReels.row3 || []);
+    if (lastBeforeAfter) renderBeforeAfter(lastBeforeAfter);
+  }
+  // Rebuilding on resize (debounced) is what keeps the repeat-count
+  // genuinely dynamic per screen size — a phone rotated to landscape or
+  // a browser window resized on desktop gets its marquees recomputed
+  // for the new width instead of keeping whatever was right at load.
+  let resizeTimer;
+  window.addEventListener('resize', () => {
+    clearTimeout(resizeTimer);
+    resizeTimer = setTimeout(rebuildMarquees, 250);
+  });
+
   async function init() {
     try {
       const res = await fetch('/api/content');
       const content = await res.json();
-      buildRow('row1', (content.reels && content.reels.row1) || []);
-      buildRow('row2', (content.reels && content.reels.row2) || []);
-      buildRow('row3', (content.reels && content.reels.row3) || []);
+      lastReels = content.reels || { row1: [], row2: [], row3: [] };
+      lastBeforeAfter = content.beforeAfter || [];
+      buildRow('row1', lastReels.row1 || []);
+      buildRow('row2', lastReels.row2 || []);
+      buildRow('row3', lastReels.row3 || []);
       renderVideoTestimonials(content.videoTestimonials || []);
       renderWrittenTestimonials(content.writtenTestimonials || []);
-      renderBeforeAfter(content.beforeAfter || []);
+      renderBeforeAfter(lastBeforeAfter);
       renderProcessShots(content.process || {});
       applySettings(content.settings || {});
     } catch (err) {

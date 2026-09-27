@@ -157,6 +157,19 @@ function clearAuthCookie(res) {
   );
 }
 
+// Best-effort: removes the actual file from Cloudinary storage. Failures
+// here are logged but never block the delete from completing in
+// Firestore — a stray orphaned file in Cloudinary is a much smaller
+// problem than a delete button that appears to do nothing.
+async function destroyCloudinaryAsset(publicId, resourceType) {
+  if (!publicId) return;
+  try {
+    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType || "image", invalidate: true });
+  } catch (err) {
+    console.error(`Failed to delete Cloudinary asset ${publicId}:`, err.message);
+  }
+}
+
 function newId(prefix) {
   return `${prefix}_${Date.now().toString(36)}${Math.random().toString(36).slice(2, 7)}`;
 }
@@ -243,11 +256,11 @@ app.post(
   "/api/admin/reels",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { row, src } = req.body || {};
+    const { row, src, publicId } = req.body || {};
     if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
     if (!src) return res.status(400).json({ error: "src is required" });
     const content = await readContent();
-    const reel = { id: newId("r"), src };
+    const reel = { id: newId("r"), src, publicId: publicId || "" };
     content.reels[row].push(reel);
     await writeContent(content);
     res.json({ ok: true, row, reel });
@@ -261,8 +274,10 @@ app.delete(
     const { row, id } = req.params;
     if (!["row1", "row2", "row3"].includes(row)) return res.status(400).json({ error: "Invalid row" });
     const content = await readContent();
+    const reel = content.reels[row].find((r) => r.id === id);
     content.reels[row] = content.reels[row].filter((r) => r.id !== id);
     await writeContent(content);
+    if (reel) await destroyCloudinaryAsset(reel.publicId, "video");
     res.json({ ok: true });
   })
 );
@@ -272,7 +287,7 @@ app.post(
   "/api/admin/video-testimonials",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { name, handle, followers, quote, duration, focus, src, poster } = req.body || {};
+    const { name, handle, followers, quote, duration, focus, src, publicId, poster, posterPublicId } = req.body || {};
     if (!name || !src) return res.status(400).json({ error: "Name and src are required" });
     const content = await readContent();
     const testimonial = {
@@ -284,7 +299,9 @@ app.post(
       duration: duration || "",
       focus: focus || "center",
       src,
+      publicId: publicId || "",
       poster: poster || "",
+      posterPublicId: posterPublicId || "",
     };
     content.videoTestimonials.push(testimonial);
     await writeContent(content);
@@ -297,8 +314,13 @@ app.delete(
   requireAuth,
   asyncRoute(async (req, res) => {
     const content = await readContent();
+    const testimonial = content.videoTestimonials.find((t) => t.id === req.params.id);
     content.videoTestimonials = content.videoTestimonials.filter((t) => t.id !== req.params.id);
     await writeContent(content);
+    if (testimonial) {
+      await destroyCloudinaryAsset(testimonial.publicId, "video");
+      await destroyCloudinaryAsset(testimonial.posterPublicId, "image");
+    }
     res.json({ ok: true });
   })
 );
@@ -334,7 +356,7 @@ app.post(
   "/api/admin/before-after",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { client, handle, stats, before, after } = req.body || {};
+    const { client, handle, stats, before, beforePublicId, after, afterPublicId } = req.body || {};
     if (!client) return res.status(400).json({ error: "Client name is required" });
 
     // stats textarea format: one "Label|beforeVal|afterVal" per line.
@@ -352,7 +374,9 @@ app.post(
       client,
       handle: handle || "",
       before: before || "",
+      beforePublicId: beforePublicId || "",
       after: after || "",
+      afterPublicId: afterPublicId || "",
       stats: parsedStats,
     };
     content.beforeAfter.push(entry);
@@ -366,8 +390,13 @@ app.delete(
   requireAuth,
   asyncRoute(async (req, res) => {
     const content = await readContent();
+    const entry = content.beforeAfter.find((b) => b.id === req.params.id);
     content.beforeAfter = content.beforeAfter.filter((b) => b.id !== req.params.id);
     await writeContent(content);
+    if (entry) {
+      await destroyCloudinaryAsset(entry.beforePublicId, "image");
+      await destroyCloudinaryAsset(entry.afterPublicId, "image");
+    }
     res.json({ ok: true });
   })
 );
@@ -379,12 +408,15 @@ app.post(
   requireAuth,
   asyncRoute(async (req, res) => {
     const { slot } = req.params;
-    const { url } = req.body || {};
+    const { url, publicId } = req.body || {};
     if (!PROCESS_SLOTS.has(slot)) return res.status(400).json({ error: "Invalid slot" });
     if (!url) return res.status(400).json({ error: "url is required" });
     const content = await readContent();
+    const previousPublicId = content.processPublicIds?.[slot];
     content.process[slot] = url;
+    content.processPublicIds = { ...content.processPublicIds, [slot]: publicId || "" };
     await writeContent(content);
+    if (previousPublicId) await destroyCloudinaryAsset(previousPublicId, "image");
     res.json({ ok: true, slot, url });
   })
 );
@@ -396,8 +428,11 @@ app.delete(
     const { slot } = req.params;
     if (!PROCESS_SLOTS.has(slot)) return res.status(400).json({ error: "Invalid slot" });
     const content = await readContent();
+    const publicId = content.processPublicIds?.[slot];
     content.process[slot] = "";
+    if (content.processPublicIds) content.processPublicIds[slot] = "";
     await writeContent(content);
+    if (publicId) await destroyCloudinaryAsset(publicId, "image");
     res.json({ ok: true });
   })
 );

@@ -85,7 +85,9 @@ async function uploadToCloudinary(file, folder, resourceType, onProgress) {
     onProgress,
     false
   );
-  return result.secure_url;
+  // public_id is what lets us actually delete the file from Cloudinary
+  // later — the secure_url alone isn't enough for that.
+  return { url: result.secure_url, publicId: result.public_id, resourceType };
 }
 
 async function checkAuth() {
@@ -131,18 +133,44 @@ document.getElementById("logout-btn").addEventListener("click", async () => {
   checkAuth();
 });
 
-function deleteRow(container, label) {
+// Every delete button goes through here so the loading/error behavior is
+// consistent everywhere: disable + "Deleting…" while the request is in
+// flight, an inline error message (with the button re-enabled) if it
+// fails instead of silently doing nothing, and only refresh the list on
+// confirmed success.
+function deleteRow(container, label, onDelete) {
   const row = document.createElement("div");
-  row.className = "flex items-center justify-between gap-3 bg-white border border-[#E8E8E3] rounded-md px-3 py-2 text-sm";
+  row.className = "bg-white border border-[#E8E8E3] rounded-md px-3 py-2 text-sm";
+  const line = document.createElement("div");
+  line.className = "flex items-center justify-between gap-3";
   const span = document.createElement("span");
   span.className = "truncate";
   span.textContent = label;
   const btn = document.createElement("button");
   btn.type = "button";
   btn.textContent = "Delete";
-  btn.className = "text-red-600 border border-red-600 rounded-full px-3 py-1 text-xs shrink-0 hover:bg-red-600 hover:text-white transition";
-  row.append(span, btn);
+  btn.className = "text-red-600 border border-red-600 rounded-full px-3 py-1 text-xs shrink-0 hover:bg-red-600 hover:text-white transition disabled:opacity-50";
+  const error = document.createElement("p");
+  error.className = "text-red-600 text-xs mt-1 hidden";
+  line.append(span, btn);
+  row.append(line, error);
   container.appendChild(row);
+
+  btn.addEventListener("click", async () => {
+    btn.disabled = true;
+    btn.textContent = "Deleting…";
+    error.classList.add("hidden");
+    try {
+      await onDelete();
+      await loadDashboard();
+    } catch (err) {
+      btn.disabled = false;
+      btn.textContent = "Delete";
+      error.textContent = `Failed to delete: ${err.message}`;
+      error.classList.remove("hidden");
+    }
+  });
+
   return btn;
 }
 
@@ -160,12 +188,12 @@ reelForm.addEventListener("submit", async (e) => {
   btn.disabled = true;
   reelStatus.textContent = "Uploading… 0%";
   try {
-    const src = await uploadToCloudinary(file, "abd-edits/reels", "video", (pct) => {
+    const media = await uploadToCloudinary(file, "abd-edits/reels", "video", (pct) => {
       reelStatus.textContent = `Uploading… ${pct}%`;
     });
     await api("/api/admin/reels", {
       method: "POST",
-      body: JSON.stringify({ row, src }),
+      body: JSON.stringify({ row, src: media.url, publicId: media.publicId }),
       headers: { "Content-Type": "application/json" },
     });
     reelStatus.textContent = "✅ Uploaded successfully.";
@@ -182,11 +210,9 @@ function renderReels(reels) {
   reelList.innerHTML = "";
   ["row1", "row2", "row3"].forEach((row) => {
     (reels[row] || []).forEach((r) => {
-      const del = deleteRow(reelList, `[${row}] reel`);
-      del.addEventListener("click", async () => {
-        await api(`/api/admin/reels/${row}/${r.id}`, { method: "DELETE" });
-        loadDashboard();
-      });
+      deleteRow(reelList, `[${row}] reel`, () =>
+        api(`/api/admin/reels/${row}/${r.id}`, { method: "DELETE" })
+      );
     });
   });
 }
@@ -205,15 +231,18 @@ vtForm.addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     vtStatus.textContent = "Uploading video… 0%";
-    const src = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
+    const media = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
       vtStatus.textContent = `Uploading video… ${pct}%`;
     });
     let poster = "";
+    let posterPublicId = "";
     if (posterFile && posterFile.size > 0) {
       vtStatus.textContent = "Uploading poster… 0%";
-      poster = await uploadToCloudinary(posterFile, "abd-edits/video-testimonials", "image", (pct) => {
+      const posterMedia = await uploadToCloudinary(posterFile, "abd-edits/video-testimonials", "image", (pct) => {
         vtStatus.textContent = `Uploading poster… ${pct}%`;
       });
+      poster = posterMedia.url;
+      posterPublicId = posterMedia.publicId;
     }
     await api("/api/admin/video-testimonials", {
       method: "POST",
@@ -224,8 +253,10 @@ vtForm.addEventListener("submit", async (e) => {
         quote: formData.get("quote"),
         duration: formData.get("duration"),
         focus: formData.get("focus"),
-        src,
+        src: media.url,
+        publicId: media.publicId,
         poster,
+        posterPublicId,
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -242,11 +273,9 @@ vtForm.addEventListener("submit", async (e) => {
 function renderVideoTestimonials(list) {
   vtList.innerHTML = "";
   list.forEach((t) => {
-    const del = deleteRow(vtList, `${t.name} — ${t.quote ? t.quote.slice(0, 40) : "(no quote)"}`);
-    del.addEventListener("click", async () => {
-      await api(`/api/admin/video-testimonials/${t.id}`, { method: "DELETE" });
-      loadDashboard();
-    });
+    deleteRow(vtList, `${t.name} — ${t.quote ? t.quote.slice(0, 40) : "(no quote)"}`, () =>
+      api(`/api/admin/video-testimonials/${t.id}`, { method: "DELETE" })
+    );
   });
 }
 
@@ -275,11 +304,9 @@ wtForm.addEventListener("submit", async (e) => {
 function renderWrittenTestimonials(list) {
   wtList.innerHTML = "";
   list.forEach((t) => {
-    const del = deleteRow(wtList, `${t.name} — "${t.quote.slice(0, 50)}${t.quote.length > 50 ? "…" : ""}"`);
-    del.addEventListener("click", async () => {
-      await api(`/api/admin/written-testimonials/${t.id}`, { method: "DELETE" });
-      loadDashboard();
-    });
+    deleteRow(wtList, `${t.name} — "${t.quote.slice(0, 50)}${t.quote.length > 50 ? "…" : ""}"`, () =>
+      api(`/api/admin/written-testimonials/${t.id}`, { method: "DELETE" })
+    );
   });
 }
 
@@ -297,18 +324,24 @@ baForm.addEventListener("submit", async (e) => {
   btn.disabled = true;
   try {
     let before = "";
+    let beforePublicId = "";
     let after = "";
+    let afterPublicId = "";
     if (beforeFile && beforeFile.size > 0) {
       baStatus.textContent = "Uploading before… 0%";
-      before = await uploadToCloudinary(beforeFile, "abd-edits/before-after", "image", (pct) => {
+      const beforeMedia = await uploadToCloudinary(beforeFile, "abd-edits/before-after", "image", (pct) => {
         baStatus.textContent = `Uploading before… ${pct}%`;
       });
+      before = beforeMedia.url;
+      beforePublicId = beforeMedia.publicId;
     }
     if (afterFile && afterFile.size > 0) {
       baStatus.textContent = "Uploading after… 0%";
-      after = await uploadToCloudinary(afterFile, "abd-edits/before-after", "image", (pct) => {
+      const afterMedia = await uploadToCloudinary(afterFile, "abd-edits/before-after", "image", (pct) => {
         baStatus.textContent = `Uploading after… ${pct}%`;
       });
+      after = afterMedia.url;
+      afterPublicId = afterMedia.publicId;
     }
     await api("/api/admin/before-after", {
       method: "POST",
@@ -317,7 +350,9 @@ baForm.addEventListener("submit", async (e) => {
         handle: formData.get("handle"),
         stats: formData.get("stats"),
         before,
+        beforePublicId,
         after,
+        afterPublicId,
       }),
       headers: { "Content-Type": "application/json" },
     });
@@ -334,11 +369,9 @@ baForm.addEventListener("submit", async (e) => {
 function renderBeforeAfter(list) {
   baList.innerHTML = "";
   list.forEach((b) => {
-    const del = deleteRow(baList, `${b.client} (${b.stats.length} stat rows)`);
-    del.addEventListener("click", async () => {
-      await api(`/api/admin/before-after/${b.id}`, { method: "DELETE" });
-      loadDashboard();
-    });
+    deleteRow(baList, `${b.client} (${b.stats.length} stat rows)`, () =>
+      api(`/api/admin/before-after/${b.id}`, { method: "DELETE" })
+    );
   });
 }
 
@@ -368,12 +401,12 @@ function renderProcessSlots(process) {
       if (!fileInput.files[0]) { status.textContent = "Choose a file first."; return; }
       status.textContent = "Uploading… 0%";
       try {
-        const url = await uploadToCloudinary(fileInput.files[0], "abd-edits/process", "image", (pct) => {
+        const media = await uploadToCloudinary(fileInput.files[0], "abd-edits/process", "image", (pct) => {
           status.textContent = `Uploading… ${pct}%`;
         });
         await api(`/api/admin/process/${slot}`, {
           method: "POST",
-          body: JSON.stringify({ url }),
+          body: JSON.stringify({ url: media.url, publicId: media.publicId }),
           headers: { "Content-Type": "application/json" },
         });
         status.textContent = "✅ Saved.";
@@ -385,8 +418,17 @@ function renderProcessSlots(process) {
     const clearBtn = box.querySelector(".clear-btn");
     if (clearBtn) {
       clearBtn.addEventListener("click", async () => {
-        await api(`/api/admin/process/${slot}`, { method: "DELETE" });
-        loadDashboard();
+        clearBtn.disabled = true;
+        clearBtn.textContent = "Clearing…";
+        status.textContent = "";
+        try {
+          await api(`/api/admin/process/${slot}`, { method: "DELETE" });
+          loadDashboard();
+        } catch (err) {
+          clearBtn.disabled = false;
+          clearBtn.textContent = "Clear";
+          status.textContent = `❌ Failed to clear: ${err.message}`;
+        }
       });
     }
     processSlotsEl.appendChild(box);

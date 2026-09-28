@@ -61,6 +61,7 @@
 
   .meta-bar{
     background:var(--bg);
+    border-bottom:1px solid var(--border);
     padding:14px 0;
   }
   .meta-bar .wrap{
@@ -92,12 +93,14 @@
     z-index:50;
     padding:20px 0;
     background:transparent;
-    transition:background .4s var(--ease), padding .4s var(--ease), backdrop-filter .4s var(--ease);
+    border-bottom:1px solid transparent;
+    transition:background .4s var(--ease), padding .4s var(--ease), border-color .4s var(--ease), backdrop-filter .4s var(--ease);
   }
   nav.scrolled{
     background:rgba(255,255,255,0.78);
     backdrop-filter:blur(14px);
     -webkit-backdrop-filter:blur(14px);
+    border-color:var(--border);
     padding:13px 0;
   }
   nav .wrap{display:flex; align-items:center; justify-content:space-between;}
@@ -314,13 +317,14 @@
     aspect-ratio:9/16;
     border-radius:var(--radius);
     background:var(--card);
+    border:1px solid var(--border);
     position:relative;
     overflow:hidden;
     cursor:pointer;
-    transition:transform .35s var(--ease);
+    transition:transform .35s var(--ease), border-color .35s var(--ease);
   }
   @media(max-width:600px){:root{--card-w:135px;}}
-  .tile:hover{transform:translateY(-4px) scale(1.06); z-index:2;}
+  .tile:hover{transform:translateY(-4px) scale(1.06); border-color:var(--yellow-dim); z-index:2;}
   @media (prefers-reduced-motion: reduce){.tile:hover{transform:none;}}
   .tile.alt{background:var(--card-alt);}
   .tile video, .tile img{position:absolute; inset:0; width:100%; height:100%; object-fit:cover;}
@@ -344,14 +348,15 @@
     flex:0 0 140px;
     aspect-ratio:9/16;
     background:var(--card);
+    border:1px solid var(--border);
     border-radius:var(--radius);
     position:relative;
     display:flex;
     align-items:flex-end;
     padding:12px;
-    transition:transform .35s var(--ease);
+    transition:transform .35s var(--ease), border-color .35s var(--ease);
   }
-  .t-card:hover{transform:translateY(-4px);}
+  .t-card:hover{transform:translateY(-4px); border-color:var(--yellow-dim);}
   .t-card .play{
     position:absolute; top:44%; left:50%;
     transform:translate(-50%,-50%);
@@ -375,8 +380,10 @@
   }
   .wt-card{
     background:var(--card);
+    border:1px solid var(--border);
     border-radius:var(--radius);
     padding:22px;
+    border-left:2px solid var(--yellow);
     transition:transform .35s var(--ease);
   }
   .wt-card:hover{transform:translateY(-3px);}
@@ -399,6 +406,7 @@
     position:relative;
     overflow:hidden;
     background:var(--card);
+    border-top:1px solid var(--border);
     padding:72px 0 56px;
   }
   .footer-watermark{
@@ -441,17 +449,21 @@
   }
   .contact-chip{
     background:var(--card-alt);
+    border:1px solid var(--border);
     border-radius:var(--radius);
     padding:14px;
     display:flex;
     align-items:center;
     gap:10px;
-    transition:transform 0.15s;
+    transition:border-color 0.15s, transform 0.15s;
   }
-  .contact-chip:hover{transform:translateY(-2px);}
+  .contact-chip:hover{border-color:var(--yellow); transform:translateY(-2px);}
   .contact-chip svg{flex-shrink:0;}
   .contact-chip span{color:var(--text); font-size:13px; font-weight:500;}
   .contact-grid a:nth-child(5){grid-column:1 / -1;}
+
+  section{border-top:1px solid var(--border);}
+  .hero{border-top:none;}
 
   .logo{color:var(--text);}
   .nav-right{display:flex; align-items:center; gap:20px;}
@@ -496,7 +508,7 @@
   .hero .book-btn:hover{transform:translateY(-2px);}
 
   .hero.hero-home{padding-bottom:0;}
-  .ba-home{background:var(--yellow); padding:64px 0 72px; text-align:center;}
+  .ba-home{background:var(--yellow); border-top:none; padding:64px 0 72px; text-align:center;}
   .ba-home h2{font-size:clamp(24px,4vw,42px); font-weight:800; text-transform:uppercase; letter-spacing:-0.01em; line-height:1.1; margin:0 0 8px; text-wrap:balance;}
   .ba-home .ba-sub{font-size:clamp(14px,1.6vw,17px); color:rgba(17,17,17,0.72); margin:0 0 36px;}
   /* Same scrollable, self-drifting strip as the reels rows above (shared
@@ -555,8 +567,8 @@
     .video-viewer, .video-viewer video{transition:none;}
   }
 
-  .how{background:var(--yellow); padding:0; text-align:center;}
-  .how .wrap{padding-top:64px; padding-bottom:64px;}
+  .how{background:var(--yellow); border-top:none; padding:0; text-align:center;}
+  .how .wrap{padding-top:64px; padding-bottom:64px; border-top:1.5px dashed rgba(17,17,17,.55); border-bottom:1.5px dashed rgba(17,17,17,.55);}
   .how-inner{padding:0 20px;}
   .how h2{font-family:'Montserrat','Poppins',sans-serif; font-size:clamp(24px,4vw,42px); font-weight:800; text-transform:uppercase; line-height:1.1; margin:0 0 48px; text-wrap:balance;}
   .how-steps{list-style:none; margin:0; padding:0; display:grid; gap:40px 20px; grid-template-columns:1fr; max-width:420px; margin-inline:auto;}
@@ -690,7 +702,7 @@
      line up in the grid — the video is cropped to fit here (object-fit:
      cover below) purely for a consistent thumbnail; it always plays at
      its real, uncropped ratio in the lightbox. */
-  .tv-player{position:relative; aspect-ratio:16/9; border-radius:16px; overflow:hidden; background:#111; box-shadow:0 18px 40px -24px rgba(17,17,17,.55);}
+  .tv-player{position:relative; aspect-ratio:16/9; border-radius:16px; overflow:hidden; background:#111; border:1px solid rgba(17,17,17,.12); box-shadow:0 18px 40px -24px rgba(17,17,17,.55);}
   .tv-player video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#111;}
   .tv-cover{position:absolute; inset:0; width:100%; padding:0; border:0; background:transparent; cursor:pointer; color:#fff; font:inherit;}
   .tv-cover:focus-visible{outline:3px solid var(--yellow); outline-offset:-3px; border-radius:16px;}

@@ -516,6 +516,15 @@
   .bah-grid{width:100%; text-align:left; --gap:16px;}
   @media(max-width:760px){.bah-grid{--gap:12px;}}
   .bah-track{display:flex; align-items:flex-start; width:max-content;}
+  /* The before/after videos are all exported from one template: a grey
+     1080x1920 canvas with the "After" clip, the small "Before" clip and
+     a view count placed on it. Measured across every video at 8 points
+     in time, all real content sits in x 80-991, y 169-1495. This crops
+     the tile to that box (plus 16px above the label / below the views
+     count) so the grey canvas margin doesn't show as a frame. Box used:
+     x 80, y 153, 912 x 1358 of the 1080x1920 frame. */
+  .tile.ba-crop{aspect-ratio:912/1358;}
+  .tile.ba-crop video{inset:auto; left:-8.7719%; top:-11.2666%; width:118.4211%; height:141.3844%; max-width:none; object-fit:fill;}
   .ba-home .book-btn{margin-top:40px;}
   /* Large-in-page video viewer — a bigger view on top of the page, not
      the browser's real Fullscreen API (which hides the address bar and
@@ -1320,7 +1329,15 @@
     // Same markup/classes as a reel tile, so this row looks and behaves
     // exactly like the reels rows (hover zoom, click-to-play lightbox,
     // same size).
-    const cardHtml = (c) => `<div class="tile" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
+    // Portrait 9:16 uploads are the grey-canvas template, so they get the
+    // crop (see .ba-crop); anything else shows whole at its own ratio.
+    const isPortrait916 = (ratio) => {
+      const [w, h] = String(ratio || '9/16').split('/').map(Number);
+      return w > 0 && h > 0 && Math.abs(w / h - 9 / 16) < 0.01;
+    };
+    const cardHtml = (c) => isPortrait916(c.ratio)
+      ? `<div class="tile ba-crop"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`
+      : `<div class="tile" style="aspect-ratio:${esc(c.ratio)}"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
     const mobile = window.innerWidth <= 600;
     const cardW = mobile ? 135 : 180;
     const gap = mobile ? 8 : 12;

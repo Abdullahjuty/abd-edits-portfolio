@@ -34,8 +34,23 @@ async function api(path, options = {}) {
     ...options,
   });
   const data = await res.json().catch(() => ({}));
+  // Login no longer valid (expired, logged out elsewhere, server key
+  // changed): send the admin back to the login form with a clear reason
+  // instead of leaving them on a dashboard where every action fails.
+  // The login call itself 401s on a wrong password — not this case.
+  if (res.status === 401 && path !== "/api/admin/login") {
+    showLoginExpired();
+    throw new Error("Your login expired — please log in again");
+  }
   if (!res.ok) throw new Error(data.error || "Request failed");
   return data;
+}
+
+function showLoginExpired() {
+  dashboardView.hidden = true;
+  loginView.hidden = false;
+  loginError.textContent = "Your login expired — please log in again.";
+  loginError.hidden = false;
 }
 
 // fetch() can't report upload progress, so file uploads use XHR instead —

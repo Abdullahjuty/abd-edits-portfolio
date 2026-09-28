@@ -472,9 +472,6 @@
   .logo{color:var(--text);}
   .nav-right{display:flex; align-items:center; gap:20px;}
   @media(max-width:420px){.nav-right{gap:12px;} .nav-cta{padding:9px 14px;} .logo{font-size:14px;}}
-  .nav-link{font-size:13px; font-weight:600; color:var(--text); position:relative; padding:4px 0;}
-  .nav-link::after{content:''; position:absolute; left:0; right:0; bottom:0; height:2px; background:var(--yellow); transform:scaleX(0); transform-origin:left; transition:transform .35s var(--ease);}
-  .nav-link:hover::after{transform:scaleX(1);}
   .see-all-wrap{text-align:center; margin-top:28px;}
   .see-all{display:inline-block; font-size:13px; font-weight:700; text-transform:uppercase; letter-spacing:0.03em; padding:12px 26px; border-radius:999px; border:1.5px solid var(--text); transition:background .25s ease, transform .35s var(--ease);}
   .see-all:hover{background:var(--yellow); border-color:var(--yellow); transform:translateY(-2px);}
@@ -749,7 +746,6 @@
   <div class="wrap">
     <a class="logo" href="index.html" aria-label="hookbyabdullah home">hookby<span>abdullah</span></a>
     <div class="nav-right">
-      <a class="nav-link" href="results.html">Results</a>
       <a class="nav-cta" href="https://wa.me/923248061911" target="_blank" rel="noopener" id="navWhatsapp">DM us</a>
     </div>
   </div>

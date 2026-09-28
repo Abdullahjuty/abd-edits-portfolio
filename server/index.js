@@ -19,10 +19,17 @@ const PORT = process.env.PORT || 4000;
 // JWT is a self-contained, signed proof of login that needs no server-side
 // memory to check — which matters because a serverless host (Vercel,
 // Cloudflare) may run each request in a fresh process with nothing
-// remembered between them. Set this explicitly in production; the random
-// fallback is only for quick local testing (it would invalidate existing
-// logins on every restart, which is fine on your own laptop, not in prod).
-const JWT_SECRET = process.env.JWT_SECRET || process.env.SESSION_SECRET || crypto.randomBytes(32).toString("hex");
+// remembered between them. Every instance must use the SAME secret, or a
+// login made on one instance is rejected by the next ("Not authenticated"
+// mid-session, and after every deploy). Without JWT_SECRET set, derive it
+// from the Cloudinary API secret, which every deployed instance already
+// shares. The random fallback is only for local testing with neither set.
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  process.env.SESSION_SECRET ||
+  (process.env.CLOUDINARY_API_SECRET &&
+    crypto.createHmac("sha256", process.env.CLOUDINARY_API_SECRET).update("abd-edits admin jwt").digest("hex")) ||
+  crypto.randomBytes(32).toString("hex");
 const JWT_COOKIE_NAME = "admin_token";
 const JWT_EXPIRY = "30d"; // admins log in rarely — keep them signed in for weeks, not hours
 

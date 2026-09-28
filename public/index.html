@@ -1061,7 +1061,7 @@
       const poster = t.poster || cloudinaryVideoPoster(t.src);
       card.innerHTML = `
         <div class="tv-player">
-          <video preload="none" playsinline poster="${esc(poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
+          <video preload="metadata" muted autoplay loop playsinline poster="${esc(poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)}), opens larger with sound">
             <span class="tv-big">${tvPlaySvg}</span>
             <span class="tv-bar">${tvPlaySvg}<span class="tv-time">${esc(t.duration)}</span><span class="tv-track"></span><span class="tv-dots" aria-hidden="true">•••</span></span>

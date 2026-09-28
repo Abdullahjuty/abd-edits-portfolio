@@ -451,6 +451,27 @@ app.delete(
   })
 );
 
+// "How we work together" section: show/hide it, and edit its heading and
+// each step's title + text. An empty field means "use the site's built-in
+// text", so older saved content without this field keeps working too.
+app.put(
+  "/api/admin/how-it-works",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { hidden, heading, steps } = req.body || {};
+    if (!Array.isArray(steps) || steps.length !== 4) return res.status(400).json({ error: "steps must be a list of 4" });
+    const clean = (value, max) => String(value ?? "").trim().slice(0, max);
+    const content = await readContent();
+    content.howItWorks = {
+      hidden: Boolean(hidden),
+      heading: clean(heading, 120),
+      steps: steps.map((s) => ({ title: clean(s?.title, 80), text: clean(s?.text, 600) })),
+    };
+    await writeContent(content);
+    res.json({ ok: true, howItWorks: content.howItWorks });
+  })
+);
+
 // Site settings (contact links, booking URL, meta bar text)
 app.put(
   "/api/admin/settings",

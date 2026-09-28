@@ -68,7 +68,7 @@
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="video-testimonials">Video testimonials</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="before-after">Before &amp; after</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="client-screenshots">Client screenshots</button>
-          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="process">Process screenshots</button>
+          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="process">How it works</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="settings">Contact &amp; booking</button>
           <div class="border-t border-[#E8E8E3] my-2"></div>
           <a class="block px-3 py-2 rounded-md text-sm font-semibold hover:bg-yellow transition" href="index.html" target="_blank">View site ↗</a>
@@ -179,9 +179,23 @@
             <div id="cs-list" class="grid gap-2"></div>
           </section>
 
-          <!-- Process screenshots -->
+          <!-- How it works: show/hide, text, step screenshots -->
           <section class="panel" data-panel="process">
-            <p class="text-sm text-[#6E6E6A] mb-5">Each "how we work" step shows a drawn mockup by default. Upload a real screenshot to replace it, or leave empty.</p>
+            <p class="text-sm text-[#6E6E6A] mb-5">The "How we work together" section on the homepage. Leave a text box empty to use the original text.</p>
+            <form id="how-form" class="grid sm:grid-cols-2 gap-4 mb-8">
+              <label class="sm:col-span-2 flex items-center gap-3 text-sm font-semibold cursor-pointer">
+                <input type="checkbox" name="visible" class="w-5 h-5 accent-[#0B0B0B]" />
+                Show this section on the site
+              </label>
+              <label class="field sm:col-span-2"><span>Section heading</span><input type="text" name="heading" maxlength="120" /></label>
+              <div id="how-steps" class="sm:col-span-2 grid sm:grid-cols-2 gap-4"></div>
+              <div class="sm:col-span-2 flex items-center gap-3">
+                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Save</button>
+                <p class="text-sm" id="how-status"></p>
+              </div>
+            </form>
+            <p class="text-sm font-semibold mb-1">Step screenshots</p>
+            <p class="text-sm text-[#6E6E6A] mb-5">Each step shows a drawn mockup by default. Upload a real screenshot to replace it, or leave empty.</p>
             <div id="process-slots" class="grid sm:grid-cols-2 gap-4"></div>
           </section>
 

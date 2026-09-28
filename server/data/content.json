@@ -13,6 +13,16 @@
     "review": "",
     "upload": ""
   },
+  "howItWorks": {
+    "hidden": false,
+    "heading": "",
+    "steps": [
+      { "title": "", "text": "" },
+      { "title": "", "text": "" },
+      { "title": "", "text": "" },
+      { "title": "", "text": "" }
+    ]
+  },
   "settings": {
     "whatsapp": "923248061911",
     "messenger": "",

@@ -489,6 +489,70 @@ function renderProcessSlots(process) {
   });
 }
 
+// ---------- how it works (show/hide + text) ----------
+// The site's built-in text; boxes start filled with it so it's easy to
+// tweak. A box left empty also falls back to this on the site.
+const HOW_DEFAULTS = {
+  heading: "How we work together",
+  steps: [
+    { title: "Send your footage", text: "Just hit record and send it over. New to filming? We'll show you how to set up, what to say, and how to look natural on camera." },
+    { title: "We research & edit", text: "Before we cut anything, we study what makes people stop scrolling in your niche. Then we edit every video with a strong hook, tight pacing and captions, built for your audience." },
+    { title: "Review & approve", text: "You check the edit. If anything needs changing, we fix it." },
+    { title: "We handle posting", text: "If you'd like, we'll upload straight to your social media so you never have to touch it." },
+  ],
+};
+const howForm = document.getElementById("how-form");
+const howStatus = document.getElementById("how-status");
+document.getElementById("how-steps").innerHTML = HOW_DEFAULTS.steps
+  .map((_, i) => `
+    <div class="border border-[#E8E8E3] rounded-md p-3 bg-white grid gap-3">
+      <label class="field"><span>Step ${i + 1} title (the number is added automatically)</span><input type="text" name="title${i}" maxlength="80" /></label>
+      <label class="field"><span>Step ${i + 1} text</span><textarea name="text${i}" rows="5" maxlength="600"></textarea></label>
+    </div>`)
+  .join("");
+
+// loadDashboard() runs after every upload/delete in any tab; don't wipe
+// edits here that haven't been saved yet.
+let howDirty = false;
+howForm.addEventListener("input", () => { howDirty = true; });
+
+function fillHowItWorks(how) {
+  if (howDirty) return;
+  const saved = how || {};
+  howForm.elements.visible.checked = !saved.hidden;
+  howForm.elements.heading.value = saved.heading || HOW_DEFAULTS.heading;
+  HOW_DEFAULTS.steps.forEach((def, i) => {
+    const s = (saved.steps || [])[i] || {};
+    howForm.elements[`title${i}`].value = s.title || def.title;
+    howForm.elements[`text${i}`].value = s.text || def.text;
+  });
+}
+
+howForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = howForm.querySelector('button[type="submit"]');
+  const el = howForm.elements;
+  btn.disabled = true;
+  howStatus.textContent = "Saving…";
+  try {
+    await api("/api/admin/how-it-works", {
+      method: "PUT",
+      body: JSON.stringify({
+        hidden: !el.visible.checked,
+        heading: el.heading.value,
+        steps: HOW_DEFAULTS.steps.map((_, i) => ({ title: el[`title${i}`].value, text: el[`text${i}`].value })),
+      }),
+      headers: { "Content-Type": "application/json" },
+    });
+    howDirty = false;
+    howStatus.textContent = el.visible.checked ? "✅ Saved. The section is shown on the site." : "✅ Saved. The section is hidden on the site.";
+  } catch (err) {
+    howStatus.textContent = `❌ ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
 // ---------- settings ----------
 const settingsForm = document.getElementById("settings-form");
 const settingsStatus = document.getElementById("settings-status");
@@ -525,6 +589,7 @@ async function loadDashboard() {
   renderBeforeAfter(content.beforeAfter || []);
   renderClientScreenshots(content.clientScreenshots || []);
   renderProcessSlots(content.process || {});
+  fillHowItWorks(content.howItWorks);
   fillSettings(content.settings || {});
 }
 

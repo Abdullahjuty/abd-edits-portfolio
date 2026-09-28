@@ -1314,6 +1314,21 @@
     });
   }
 
+  // "How we work together": hidden from the admin panel, or with its
+  // heading / step text replaced. Empty fields keep the text in the HTML.
+  // `:scope >` because the step mockups contain their own <p>s.
+  function applyHowItWorks(how) {
+    if (!how) return;
+    const section = document.getElementById('process');
+    section.hidden = Boolean(how.hidden);
+    if (how.heading) section.querySelector('h2').textContent = how.heading;
+    section.querySelectorAll('.how-step').forEach((step, i) => {
+      const s = (how.steps || [])[i] || {};
+      if (s.title) step.querySelector(':scope > h3').textContent = `${i + 1}. ${s.title}`;
+      if (s.text) step.querySelector(':scope > p').textContent = s.text;
+    });
+  }
+
   function applySettings(settings) {
     const wa = settings.whatsapp ? `https://wa.me/${settings.whatsapp}` : '#';
     const waMsg = "Hi, I'd like to book a call about video editing for my personal brand.";
@@ -1368,6 +1383,7 @@
       renderClientScreenshots(content.clientScreenshots || []);
       renderBeforeAfter(lastBeforeAfter);
       renderProcessShots(content.process || {});
+      applyHowItWorks(content.howItWorks);
       applySettings(content.settings || {});
     } catch (err) {
       console.error('Failed to load site content:', err);

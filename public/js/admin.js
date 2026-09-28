@@ -404,6 +404,47 @@ function renderBeforeAfter(list) {
   });
 }
 
+// ---------- client screenshots ----------
+const csForm = document.getElementById("cs-form");
+const csStatus = document.getElementById("cs-status");
+const csList = document.getElementById("cs-list");
+
+csForm.addEventListener("submit", async (e) => {
+  e.preventDefault();
+  const btn = csForm.querySelector('button[type="submit"]');
+  const formData = new FormData(csForm);
+  const file = formData.get("media");
+  const label = formData.get("label");
+  btn.disabled = true;
+  csStatus.textContent = "Uploading… 0%";
+  try {
+    const media = await uploadToCloudinary(file, "abd-edits/client-screenshots", "image", (pct) => {
+      csStatus.textContent = `Uploading… ${pct}%`;
+    });
+    await api("/api/admin/client-screenshots", {
+      method: "POST",
+      body: JSON.stringify({ src: media.url, publicId: media.publicId, label }),
+      headers: { "Content-Type": "application/json" },
+    });
+    csStatus.textContent = "✅ Added successfully.";
+    csForm.reset();
+    loadDashboard();
+  } catch (err) {
+    csStatus.textContent = `❌ Failed: ${err.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+});
+
+function renderClientScreenshots(list) {
+  csList.innerHTML = "";
+  list.forEach((s) => {
+    deleteRow(csList, s.label || "(untitled screenshot)", () =>
+      api(`/api/admin/client-screenshots/${s.id}`, { method: "DELETE" })
+    );
+  });
+}
+
 // ---------- process screenshots ----------
 const processSlotsEl = document.getElementById("process-slots");
 const PROCESS_LABELS = { record: "1. Send your footage", edit: "2. We research & edit", review: "3. Review & approve", upload: "4. We handle posting" };
@@ -498,6 +539,7 @@ async function loadDashboard() {
   renderVideoTestimonials(content.videoTestimonials || []);
   renderWrittenTestimonials(content.writtenTestimonials || []);
   renderBeforeAfter(content.beforeAfter || []);
+  renderClientScreenshots(content.clientScreenshots || []);
   renderProcessSlots(content.process || {});
   fillSettings(content.settings || {});
 }

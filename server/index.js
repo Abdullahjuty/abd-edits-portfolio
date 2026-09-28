@@ -397,6 +397,37 @@ app.delete(
   })
 );
 
+// Client screenshots (reviews / results / wins) — shown as a scattered
+// collage on the public site. Just an image plus an admin-only label.
+// `|| []` because the live Firestore doc predates this field.
+app.post(
+  "/api/admin/client-screenshots",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const { src, publicId, label } = req.body || {};
+    if (!src) return res.status(400).json({ error: "src is required" });
+    const content = await readContent();
+    const shot = { id: newId("cs"), src, publicId: publicId || "", label: label || "" };
+    content.clientScreenshots = [...(content.clientScreenshots || []), shot];
+    await writeContent(content);
+    res.json({ ok: true, shot });
+  })
+);
+
+app.delete(
+  "/api/admin/client-screenshots/:id",
+  requireAuth,
+  asyncRoute(async (req, res) => {
+    const content = await readContent();
+    const list = content.clientScreenshots || [];
+    const shot = list.find((s) => s.id === req.params.id);
+    content.clientScreenshots = list.filter((s) => s.id !== req.params.id);
+    await writeContent(content);
+    if (shot) await destroyCloudinaryAsset(shot.publicId, "image");
+    res.json({ ok: true });
+  })
+);
+
 // Process step screenshots (4 fixed optional slots)
 const PROCESS_SLOTS = new Set(["record", "edit", "review", "upload"]);
 app.post(

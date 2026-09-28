@@ -727,6 +727,41 @@
 
   .wt-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important;}
 
+  /* Client screenshots — a deliberately un-grid-like "pinned photos"
+     collage. CSS columns let screenshots keep their own natural heights
+     (cropping a review would cut off the text), each one is tilted a
+     little by its own --rot (derived from its id in JS so it stays put
+     between reloads), and hovering straightens and lifts it. Rotation
+     lives in the stylesheet via that variable, not inline, so the hover
+     rule can actually override it. */
+  .client-screens{padding:40px 0 72px; overflow-x:clip;}
+  .cs-grid{column-count:2; column-gap:18px; padding:8px 6px 0;}
+  @media(min-width:760px){.cs-grid{column-count:3; column-gap:26px;}}
+  @media(min-width:1100px){.cs-grid{column-count:4;}}
+  .cs-item{
+    display:block; width:100%; margin:0 0 22px; padding:8px; border:0;
+    break-inside:avoid;
+    background:#fff; border-radius:12px;
+    box-shadow:0 1px 0 rgba(17,17,17,.06), 0 14px 30px -18px rgba(17,17,17,.4);
+    transform:rotate(var(--rot,0deg)) translateY(var(--dy,0px));
+    transition:transform .35s var(--ease), box-shadow .35s var(--ease);
+    cursor:zoom-in; position:relative;
+  }
+  .cs-item img{display:block; width:100%; height:auto; border-radius:6px;}
+  .cs-item:hover, .cs-item:focus-visible{
+    transform:rotate(0deg) translateY(-4px) scale(1.04); z-index:2;
+    box-shadow:0 1px 0 rgba(17,17,17,.06), 0 24px 40px -16px rgba(17,17,17,.5);
+  }
+  .cs-item:focus-visible{outline:3px solid var(--yellow); outline-offset:2px;}
+  @media (prefers-reduced-motion: reduce){.cs-item{transition:none;} .cs-item:hover, .cs-item:focus-visible{transform:rotate(var(--rot,0deg));}}
+
+  .image-viewer{position:fixed; inset:0; z-index:1000; background:rgba(17,17,17,0.9); display:flex; align-items:center; justify-content:center; padding:24px; visibility:hidden; opacity:0; transition:opacity .25s ease, visibility 0s linear .25s;}
+  .image-viewer.open{visibility:visible; opacity:1; transition:opacity .25s ease;}
+  .image-viewer img{max-height:88vh; max-width:min(92vw,900px); width:auto; height:auto; border-radius:var(--radius); background:#fff; transform:scale(.94); transition:transform .4s var(--ease);}
+  .image-viewer.open img{transform:none;}
+  .image-viewer button{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:0; background:var(--yellow); font-size:22px; font-weight:700; cursor:pointer; z-index:1;}
+  @media (prefers-reduced-motion: reduce){.image-viewer, .image-viewer img{transition:none;}}
+
   .empty-note{font-size:13px; color:var(--text-secondary); text-align:center; padding:20px 0;}
 </style>
 </head>
@@ -796,6 +831,18 @@
     <div class="wt-grid" id="wtGrid"></div>
   </div>
 </section>
+
+<section class="client-screens" id="clientScreens" hidden>
+  <div class="wrap reveal">
+    <p class="label">Reviews, results &amp; wins</p>
+    <div class="cs-grid" id="csGrid"></div>
+  </div>
+</section>
+
+<div class="image-viewer" id="imageViewer" role="dialog" aria-modal="true" aria-label="Screenshot">
+  <button type="button" aria-label="Close">×</button>
+  <img alt="">
+</div>
 
 <section class="how" id="process">
   <div class="how-inner">
@@ -958,6 +1005,33 @@
   videoViewer.addEventListener('click', (e) => { if (e.target === videoViewer) shutVideoViewer(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && videoViewer.classList.contains('open')) shutVideoViewer(); });
 
+  // Screenshot lightbox for the client-screenshots collage — same overlay
+  // pattern as the video one above, for reading the small text in a
+  // review at full size.
+  const imageViewer = document.getElementById('imageViewer');
+  const imageViewerImg = imageViewer.querySelector('img');
+  const imageViewerClose = imageViewer.querySelector('button');
+  let lastImageFocus = null;
+  function openImageViewer(src, triggerEl) {
+    if (!src) return;
+    lastImageFocus = triggerEl || null;
+    imageViewerImg.src = src;
+    imageViewer.classList.add('open');
+    imageViewerClose.focus();
+  }
+  function shutImageViewer() {
+    imageViewer.classList.remove('open');
+    if (lastImageFocus) lastImageFocus.focus();
+  }
+  imageViewerClose.addEventListener('click', shutImageViewer);
+  imageViewer.addEventListener('click', (e) => { if (e.target === imageViewer) shutImageViewer(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && imageViewer.classList.contains('open')) shutImageViewer(); });
+  document.getElementById('csGrid').addEventListener('click', (e) => {
+    const item = e.target.closest('.cs-item');
+    if (!item) return;
+    openImageViewer(item.dataset.src, item);
+  });
+
   // Reel tiles (all 3 marquee rows) — one delegated listener covers
   // every tile, including ones added later when content loads.
   document.querySelector('.proof').addEventListener('click', (e) => {
@@ -1057,6 +1131,34 @@
       cover.addEventListener('click', () => openVideoViewer(t.src, cover));
       scroller.appendChild(card);
     });
+  }
+
+  // Tilt/offset per screenshot come from a hash of its id, not
+  // Math.random(), so the collage looks random but each screenshot keeps
+  // the same angle on every reload instead of reshuffling.
+  function collageJitter(id) {
+    let h = 2166136261;
+    for (let i = 0; i < id.length; i++) h = Math.imul(h ^ id.charCodeAt(i), 16777619);
+    // Ids share a long prefix and differ only in a few trailing chars, so
+    // the raw FNV bits are correlated — a final avalanche mix makes every
+    // bit depend on the whole id, otherwise most tilts point the same way.
+    h ^= h >>> 16; h = Math.imul(h, 0x85ebca6b);
+    h ^= h >>> 13; h = Math.imul(h, 0xc2b2ae35);
+    h = (h ^ (h >>> 16)) >>> 0;
+    const sign = (h >>> 8) & 1 ? 1 : -1;
+    const rot = sign * (1.2 + (h % 330) / 100);
+    const dy = (h >>> 16) % 15;
+    return { rot: rot.toFixed(2), dy };
+  }
+
+  function renderClientScreenshots(list) {
+    const section = document.getElementById('clientScreens');
+    const grid = document.getElementById('csGrid');
+    section.hidden = !list.length;
+    grid.innerHTML = list.map((s) => {
+      const { rot, dy } = collageJitter(String(s.id));
+      return `<button type="button" class="cs-item" data-src="${esc(s.src)}" style="--rot:${rot}deg; --dy:${dy}px" aria-label="View client screenshot larger"><img src="${esc(s.src)}" alt="Client review screenshot" loading="lazy" decoding="async"></button>`;
+    }).join('');
   }
 
   function renderWrittenTestimonials(list) {
@@ -1171,6 +1273,7 @@
       buildRow('row3', lastReels.row3 || []);
       renderVideoTestimonials(content.videoTestimonials || []);
       renderWrittenTestimonials(content.writtenTestimonials || []);
+      renderClientScreenshots(content.clientScreenshots || []);
       renderBeforeAfter(lastBeforeAfter);
       renderProcessShots(content.process || {});
       applySettings(content.settings || {});

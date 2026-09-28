@@ -532,12 +532,14 @@
      is what actually prevents the gap bug, not just "duplicate once". */
   .bah-track{display:flex; align-items:flex-start; width:max-content; animation:marquee-left var(--duration,42s) linear infinite;}
   @media (prefers-reduced-motion: reduce){.bah-track{animation:none;}}
+  /* Same width as the reels tiles (--card-w, defined above) — this
+     section is used for single before/after clips the same size as a
+     reel, not a separate card size. */
   .bah-card{
-    flex:0 0 var(--bah-card-w,300px);
+    flex:0 0 var(--card-w,180px);
     margin-right:var(--gap);
     background:var(--bg); border-radius:var(--radius); padding:16px; box-shadow:0 1px 0 rgba(17,17,17,0.08);
   }
-  @media(max-width:760px){:root{--bah-card-w:82vw;}}
   .bah-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 12px;}
   .bah-name{font-size:15px; font-weight:700; margin:0;}
   .bah-handle{font-size:12px; color:var(--text-secondary);}
@@ -1180,9 +1182,11 @@
         ${media(c)}
         <ul class="bah-stats">${(c.stats || []).map(({ label, beforeVal, afterVal }) => `<li><span>${esc(label)}</span><b>${esc(beforeVal)} → <em data-from="${esc(beforeVal)}" data-to="${esc(afterVal)}">${esc(MOTION ? beforeVal : afterVal)}</em></b></li>`).join('')}</ul>
       </article>`;
-    const mobile = window.innerWidth <= 760;
-    const cardW = mobile ? window.innerWidth * 0.82 : 300;
-    const gap = mobile ? 12 : 16;
+    // Same width as the reels tiles — this row shows clips the same
+    // size as a reel, not its own separate card size.
+    const mobile = window.innerWidth <= 600;
+    const cardW = mobile ? 135 : 180;
+    const gap = mobile ? 8 : 12;
     const track = document.createElement('div');
     track.className = 'bah-track';
     grid.innerHTML = '';

@@ -282,38 +282,34 @@
   }
 
   .proof{padding:56px 0; overflow:hidden;}
-  .proof-row{overflow:hidden; width:100%; margin-bottom:12px; --gap:12px;}
+  .proof-row{width:100%; margin-bottom:12px; --gap:12px;}
   @media(max-width:600px){.proof-row{--gap:8px;}}
-  .proof-row:hover .proof-track{animation-play-state:paused;}
-  /* width/duration are set dynamically per-row in JS (see setupMarquee):
-     a fixed card width lets us compute exactly how many times the list
-     must repeat so the track is always at least 2x the viewport wide —
-     otherwise, with only 1-2 real items on a wide screen, the row runs
-     out of content and a visible gap opens up where a clip should be
-     entering. --shift is the distance one full pass through the
-     original (non-repeated) list covers, so the loop is seamless
-     regardless of how many times it had to repeat. */
+  /* The reels rows and the before/after row are real horizontally
+     scrollable strips (touch swipe, trackpad, shift+wheel, and mouse drag
+     via JS) that a small script also nudges along on its own — see
+     setupMarquee. Scrollbar hidden; overscroll contained so swiping the
+     row doesn't trigger the browser's back/forward gesture. */
+  .proof-row, .bah-grid{
+    overflow-x:auto; overflow-y:hidden;
+    scrollbar-width:none;
+    overscroll-behavior-x:contain;
+    cursor:grab;
+  }
+  .proof-row::-webkit-scrollbar, .bah-grid::-webkit-scrollbar{display:none;}
+  .proof-row.dragging, .bah-grid.dragging,
+  .proof-row.dragging .tile, .bah-grid.dragging .tile{cursor:grabbing; user-select:none;}
+  /* The track is just a wide flex row of tiles; setupMarquee repeats the
+     list enough times that there is always content on both sides of the
+     visible window, so scrolling by hand in either direction never runs
+     out and wraps seamlessly. */
   .proof-track{
     display:flex;
     width:max-content;
-    animation:marquee-left var(--duration,40s) linear infinite;
     /* Without this, flex's default stretch alignment forces every tile
        to the row's tallest height, silently overriding each tile's own
        aspect-ratio (landscape/square/auto clips would get squashed to
        match neighboring portrait ones). */
     align-items:flex-start;
-  }
-  .proof-track.right{animation-name:marquee-right;}
-  @keyframes marquee-left{
-    from{transform:translateX(0);}
-    to{transform:translateX(var(--shift,-50%));}
-  }
-  @keyframes marquee-right{
-    from{transform:translateX(var(--shift,-50%));}
-    to{transform:translateX(0);}
-  }
-  @media (prefers-reduced-motion: reduce){
-    .proof-track{animation:none;}
   }
   .tile{
     flex:0 0 var(--card-w,180px);
@@ -515,20 +511,11 @@
   .ba-home{background:var(--yellow); border-top:none; padding:64px 0 72px; text-align:center;}
   .ba-home h2{font-size:clamp(24px,4vw,42px); font-weight:800; text-transform:uppercase; letter-spacing:-0.01em; line-height:1.1; margin:0 0 8px; text-wrap:balance;}
   .ba-home .ba-sub{font-size:clamp(14px,1.6vw,17px); color:rgba(17,17,17,0.72); margin:0 0 36px;}
-  /* Continuous right-to-left marquee — identical technique to the reels
-     rows above: the track's contents are duplicated once in JS and
-     animated from translateX(0) to translateX(-50%) on a loop, so a
-     card scrolling off the left edge is always mid-loop through the
-     second copy, never an abrupt jump, regardless of how many results
-     exist (1, 2, or many). */
-  .bah-grid{overflow:hidden; width:100%; text-align:left; --gap:16px;}
+  /* Same scrollable, self-drifting strip as the reels rows above (shared
+     scroll/drag styles are on .proof-row, .bah-grid together there). */
+  .bah-grid{width:100%; text-align:left; --gap:16px;}
   @media(max-width:760px){.bah-grid{--gap:12px;}}
-  .bah-grid:hover .bah-track{animation-play-state:paused;}
-  /* Same dynamic-repeat marquee as the reels rows — see the comment on
-     .proof-track for why a fixed card width + JS-computed repeat count
-     is what actually prevents the gap bug, not just "duplicate once". */
-  .bah-track{display:flex; align-items:flex-start; width:max-content; animation:marquee-left var(--duration,42s) linear infinite;}
-  @media (prefers-reduced-motion: reduce){.bah-track{animation:none;}}
+  .bah-track{display:flex; align-items:flex-start; width:max-content;}
   .ba-home .book-btn{margin-top:40px;}
   /* Large-in-page video viewer — a bigger view on top of the page, not
      the browser's real Fullscreen API (which hides the address bar and
@@ -1057,29 +1044,162 @@
      what actually populates these; nothing here is hardcoded content.
      --------------------------------------------------------------- */
 
-  // Constant visual speed (px/sec) for every marquee on the page, so a
-  // row with 3 items and a row with 20 feel the same speed rather than
-  // one crawling and one racing.
+  // Constant drift speed (px/sec) for every strip on the page, so a row
+  // with 3 items and a row with 20 feel the same speed rather than one
+  // crawling and one racing.
   const MARQUEE_SPEED_PX_PER_SEC = 50;
+  // After someone scrolls or drags a strip by hand, leave it alone this
+  // long before it starts drifting again.
+  const MARQUEE_RESUME_MS = 2500;
+  const REDUCED_MOTION = !!(window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches);
 
-  // Shared by the reels rows and the before/after row. A naive "just
-  // duplicate the list once" marquee only avoids a visible gap when the
-  // duplicated content is already at least as wide as the viewport —
-  // with only 1-2 real items on a wide/desktop screen, that's false,
-  // and a clip exits on the left with nothing queued to enter on the
-  // right. Repeating the list enough times to cover 2x the viewport
-  // width fixes this for any combination of item count and screen
-  // size, and the --shift is sized to exactly one pass through the
-  // original list, so the loop point is always seamless.
-  function setupMarquee(trackEl, itemHtmlList, cardWidthPx, gapPx) {
-    if (!itemHtmlList.length) { trackEl.innerHTML = ''; return; }
-    const oneListWidth = itemHtmlList.length * (cardWidthPx + gapPx);
-    const containerWidth = (trackEl.parentElement && trackEl.parentElement.clientWidth) || window.innerWidth || 1200;
-    const repeats = Math.max(2, Math.ceil((containerWidth * 2) / oneListWidth));
+  // How the reels rows and the before/after row work: each is a real
+  // horizontally scrollable strip (so touch swipe, trackpad and wheel
+  // scrolling all work natively; mouse drag is added below), and a single
+  // rAF loop nudges scrollLeft along on its own. The list is repeated
+  // enough times that there is always content on BOTH sides of the visible
+  // window, and the scroll position is kept inside one list-width "window"
+  // ([L, 2L) — the content is periodic with period L, so jumping by L is
+  // invisible). That is what lets a person scroll either direction
+  // forever, and with only 1-2 real items on a wide screen there is never
+  // a gap where a clip should be entering.
+  const marquees = new Map(); // scroller element -> state
+  let marqueeLast = 0;
+
+  function marqueeSet(m, value) {
+    // m.pos keeps the exact fractional position: the browser snaps
+    // scrollLeft to whole pixels, and at ~0.8px per frame, carrying the
+    // snapped value forward would round every frame up (too fast) or
+    // down (stuck). lastSet is the snapped read-back, which is what the
+    // scroll handler compares against to tell a person's scroll from our
+    // own drift.
+    m.pos = value;
+    m.el.scrollLeft = value;
+    m.lastSet = m.el.scrollLeft;
+  }
+
+  function marqueeWrap(m) {
+    const L = m.listWidth;
+    if (!L) return;
+    const s = m.el.scrollLeft;
+    if (s >= 2 * L) marqueeSet(m, s - L);
+    else if (s < L) marqueeSet(m, s + L);
+  }
+
+  function marqueeTick(now) {
+    const dt = Math.min(0.05, (now - marqueeLast) / 1000);
+    marqueeLast = now;
+    marquees.forEach((m) => {
+      if (REDUCED_MOTION || !m.listWidth || !m.visible) return;
+      if (m.hovering || m.dragging || m.touching || now < m.pausedUntil) return;
+      if (m.el.scrollWidth <= m.el.clientWidth) return;
+      let next = m.pos + m.step * MARQUEE_SPEED_PX_PER_SEC * dt;
+      const L = m.listWidth;
+      if (next >= 2 * L) next -= L;
+      else if (next < L) next += L;
+      marqueeSet(m, next);
+    });
+    requestAnimationFrame(marqueeTick);
+  }
+
+  function marqueeCreate(el) {
+    const m = {
+      el, step: 1, listWidth: 0, pos: 0, lastSet: 0, pausedUntil: 0,
+      visible: true, hovering: false, dragging: false, touching: false,
+      dragMoved: 0, lastX: 0, suppressClick: false,
+    };
+    marquees.set(el, m);
+    const pauseAfterInput = () => { m.pausedUntil = performance.now() + MARQUEE_RESUME_MS; };
+
+    el.addEventListener('scroll', () => {
+      if (Math.abs(el.scrollLeft - m.lastSet) > 1.5) {
+        // Not our own drift: a person is scrolling (wheel, trackpad,
+        // touch momentum, drag). Adopt the position and back off.
+        m.pos = el.scrollLeft;
+        m.lastSet = m.pos;
+        pauseAfterInput();
+      }
+      marqueeWrap(m);
+    }, { passive: true });
+
+    // Mouse hover pauses (so a tile can be read/clicked); touch has no hover.
+    el.addEventListener('pointerenter', (e) => { if (e.pointerType === 'mouse') m.hovering = true; });
+    el.addEventListener('pointerleave', (e) => { if (e.pointerType === 'mouse') { m.hovering = false; pauseAfterInput(); } });
+    el.addEventListener('touchstart', () => { m.touching = true; }, { passive: true });
+    const touchDone = () => { m.touching = false; pauseAfterInput(); };
+    el.addEventListener('touchend', touchDone, { passive: true });
+    el.addEventListener('touchcancel', touchDone, { passive: true });
+
+    // Mouse drag-to-scroll (touch already scrolls natively). Incremental
+    // deltas rather than start-offset math, so a wrap jump mid-drag can't
+    // throw the position off.
+    el.addEventListener('mousedown', (e) => {
+      if (e.button !== 0) return;
+      m.dragging = true; m.dragMoved = 0; m.lastX = e.clientX;
+      el.classList.add('dragging');
+      e.preventDefault(); // no text selection while dragging
+    });
+    el.addEventListener('dragstart', (e) => e.preventDefault());
+    // A drag that ends over a tile must not also count as a click on it
+    // (that would pop the video lightbox after every drag).
+    el.addEventListener('click', (e) => {
+      if (!m.suppressClick) return;
+      e.stopImmediatePropagation();
+      e.preventDefault();
+    }, true);
+
+    if ('IntersectionObserver' in window) {
+      new IntersectionObserver((entries) => { m.visible = entries[entries.length - 1].isIntersecting; }).observe(el);
+    }
+    if (!marqueeLast) {
+      marqueeLast = performance.now();
+      requestAnimationFrame(marqueeTick);
+    }
+    return m;
+  }
+
+  window.addEventListener('mousemove', (e) => {
+    marquees.forEach((m) => {
+      if (!m.dragging) return;
+      const dx = e.clientX - m.lastX;
+      m.lastX = e.clientX;
+      m.dragMoved += Math.abs(dx);
+      m.el.scrollLeft -= dx;
+    });
+  });
+  window.addEventListener('mouseup', () => {
+    marquees.forEach((m) => {
+      if (!m.dragging) return;
+      m.dragging = false;
+      m.el.classList.remove('dragging');
+      m.pausedUntil = performance.now() + MARQUEE_RESUME_MS;
+      if (m.dragMoved > 5) {
+        m.suppressClick = true;
+        setTimeout(() => { m.suppressClick = false; }, 0);
+      }
+    });
+  });
+
+  // scrollStep: +1 drifts content leftward (scrollLeft grows), -1 rightward.
+  function setupMarquee(trackEl, itemHtmlList, cardWidthPx, gapPx, scrollStep) {
+    const scroller = trackEl.parentElement;
+    const m = marquees.get(scroller) || marqueeCreate(scroller);
+    if (!itemHtmlList.length) { trackEl.innerHTML = ''; m.listWidth = 0; return; }
+    const n = itemHtmlList.length;
+    const estimatedList = n * (cardWidthPx + gapPx);
+    const containerWidth = scroller.clientWidth || window.innerWidth || 1200;
+    // Visible window can sit anywhere in [L, 2L) plus its own width, and
+    // hand scrolling can overshoot a little, hence the extra list.
+    const repeats = Math.ceil(containerWidth / estimatedList) + 3;
     trackEl.innerHTML = itemHtmlList.join('').repeat(repeats);
-    trackEl.style.setProperty('--shift', `-${100 / repeats}%`);
-    trackEl.style.setProperty('--duration', `${oneListWidth / MARQUEE_SPEED_PX_PER_SEC}s`);
-    [...trackEl.children].forEach((child, i) => { if (i >= itemHtmlList.length) child.setAttribute('aria-hidden', 'true'); });
+    [...trackEl.children].forEach((child, i) => { if (i >= n) child.setAttribute('aria-hidden', 'true'); });
+    // Measure the real period instead of trusting the CSS-vs-JS constants
+    // to agree; the estimate is only a fallback if layout isn't available.
+    const first = trackEl.children[0], next = trackEl.children[n];
+    m.listWidth = (first && next && next.offsetLeft - first.offsetLeft) || estimatedList;
+    m.step = scrollStep || 1;
+    m.pausedUntil = 0;
+    marqueeSet(m, m.listWidth);
   }
 
   function buildRow(rowId, list) {
@@ -1092,7 +1212,9 @@
       const ratio = esc(clip.ratio || '9/16');
       return `<div class="tile${alt}" style="aspect-ratio:${ratio}"><video src="${esc(clip.src)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
     });
-    setupMarquee(row, tiles, cardW, gap);
+    // ".right" rows drift left-to-right (content moves right, so the
+    // scroll position decreases); the others drift right-to-left.
+    setupMarquee(row, tiles, cardW, gap, row.classList.contains('right') ? -1 : 1);
   }
 
   // A testimonial without a manually-uploaded poster gets one derived
@@ -1206,7 +1328,7 @@
     track.className = 'bah-track';
     grid.innerHTML = '';
     grid.appendChild(track);
-    setupMarquee(track, list.map(cardHtml), cardW, gap);
+    setupMarquee(track, list.map(cardHtml), cardW, gap, 1);
   }
 
   function renderProcessShots(process) {

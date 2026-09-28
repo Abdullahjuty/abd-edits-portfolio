@@ -330,37 +330,6 @@ function renderVideoTestimonials(list) {
   });
 }
 
-// ---------- written testimonials ----------
-const wtForm = document.getElementById("wt-form");
-const wtStatus = document.getElementById("wt-status");
-const wtList = document.getElementById("wt-list");
-
-wtForm.addEventListener("submit", async (e) => {
-  e.preventDefault();
-  const formData = new FormData(wtForm);
-  try {
-    await api("/api/admin/written-testimonials", {
-      method: "POST",
-      body: JSON.stringify({ name: formData.get("name"), quote: formData.get("quote") }),
-      headers: { "Content-Type": "application/json" },
-    });
-    wtStatus.textContent = "Added.";
-    wtForm.reset();
-    loadDashboard();
-  } catch (err) {
-    wtStatus.textContent = `Error: ${err.message}`;
-  }
-});
-
-function renderWrittenTestimonials(list) {
-  wtList.innerHTML = "";
-  list.forEach((t) => {
-    deleteRow(wtList, `${t.name} — "${t.quote.slice(0, 50)}${t.quote.length > 50 ? "…" : ""}"`, () =>
-      api(`/api/admin/written-testimonials/${t.id}`, { method: "DELETE" })
-    );
-  });
-}
-
 // ---------- before / after ----------
 const baForm = document.getElementById("ba-form");
 const baStatus = document.getElementById("ba-status");
@@ -534,10 +503,10 @@ settingsForm.addEventListener("submit", async (e) => {
 
 // ---------- load everything ----------
 async function loadDashboard() {
-  const content = await api("/api/content");
+  // Unique query = bypasses the edge cache the public site uses.
+  const content = await api(`/api/content?fresh=${Date.now()}`);
   renderReels(content.reels || { row1: [], row2: [], row3: [] });
   renderVideoTestimonials(content.videoTestimonials || []);
-  renderWrittenTestimonials(content.writtenTestimonials || []);
   renderBeforeAfter(content.beforeAfter || []);
   renderClientScreenshots(content.clientScreenshots || []);
   renderProcessSlots(content.process || {});

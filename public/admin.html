@@ -66,7 +66,6 @@
         <nav id="nav-list" class="hidden md:block px-2 pb-4 md:px-3 md:space-y-1">
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="reels">Reels</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="video-testimonials">Video testimonials</button>
-          <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="written-testimonials">Written testimonials</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="before-after">Before &amp; after</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="client-screenshots">Client screenshots</button>
           <button class="nav-btn w-full text-left px-3 py-2 rounded-md text-sm font-semibold" data-tab="process">Process screenshots</button>
@@ -141,20 +140,6 @@
               </div>
             </form>
             <div id="vt-list" class="grid gap-2"></div>
-          </section>
-
-          <!-- Written testimonials -->
-          <section class="panel" data-panel="written-testimonials">
-            <p class="text-sm text-[#6E6E6A] mb-5">Short text quotes shown in the "What clients say" grid.</p>
-            <form id="wt-form" class="grid sm:grid-cols-2 gap-4 mb-6">
-              <label class="field"><span>Client name</span><input type="text" name="name" required /></label>
-              <label class="field sm:col-span-2"><span>Quote</span><textarea name="quote" rows="3" required></textarea></label>
-              <div class="sm:col-span-2 flex items-center gap-3">
-                <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add testimonial</button>
-                <p class="text-sm" id="wt-status"></p>
-              </div>
-            </form>
-            <div id="wt-list" class="grid gap-2"></div>
           </section>
 
           <!-- Before / after -->

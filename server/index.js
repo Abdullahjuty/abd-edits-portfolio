@@ -250,6 +250,12 @@ app.post(
 app.get(
   "/api/content",
   asyncRoute(async (req, res) => {
+    // Let Vercel's edge cache this for visitors: an uncached call is a
+    // serverless start + Firestore read (~1-3s), and the homepage shows
+    // nothing until it returns. Edits reach visitors within ~10s. The
+    // admin panel requests it with a unique ?fresh= query, which is a
+    // separate cache key, so the admin always sees its own changes.
+    res.set("Cache-Control", "public, max-age=0, s-maxage=10, stale-while-revalidate=60");
     res.json(await readContent());
   })
 );
@@ -332,32 +338,6 @@ app.delete(
       await destroyCloudinaryAsset(testimonial.publicId, "video");
       await destroyCloudinaryAsset(testimonial.posterPublicId, "image");
     }
-    res.json({ ok: true });
-  })
-);
-
-// Written testimonials
-app.post(
-  "/api/admin/written-testimonials",
-  requireAuth,
-  asyncRoute(async (req, res) => {
-    const { quote, name } = req.body || {};
-    if (!quote || !name) return res.status(400).json({ error: "Quote and name are required" });
-    const content = await readContent();
-    const testimonial = { id: newId("wt"), quote, name };
-    content.writtenTestimonials.push(testimonial);
-    await writeContent(content);
-    res.json({ ok: true, testimonial });
-  })
-);
-
-app.delete(
-  "/api/admin/written-testimonials/:id",
-  requireAuth,
-  asyncRoute(async (req, res) => {
-    const content = await readContent();
-    content.writtenTestimonials = content.writtenTestimonials.filter((t) => t.id !== req.params.id);
-    await writeContent(content);
     res.json({ ok: true });
   })
 );

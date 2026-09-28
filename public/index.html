@@ -369,39 +369,6 @@
     position:relative;
   }
 
-  .written-testimonials{padding:40px 0 64px;}
-  .wt-grid{
-    display:grid;
-    grid-template-columns:1fr;
-    gap:12px;
-  }
-  @media(min-width:700px){
-    .wt-grid{grid-template-columns:repeat(3,1fr);}
-  }
-  .wt-card{
-    background:var(--card);
-    border:1px solid var(--border);
-    border-radius:var(--radius);
-    padding:22px;
-    border-left:2px solid var(--yellow);
-    transition:transform .35s var(--ease);
-  }
-  .wt-card:hover{transform:translateY(-3px);}
-  .wt-quote{
-    font-size:14px;
-    line-height:1.6;
-    color:var(--text);
-    margin:0 0 14px;
-  }
-  .wt-name{
-    font-size:12px;
-    font-weight:700;
-    text-transform:uppercase;
-    letter-spacing:0.04em;
-    color:var(--text);
-    margin:0;
-  }
-
   footer{
     position:relative;
     overflow:hidden;
@@ -562,8 +529,6 @@
   .book-btn:hover::before, .book-btn:focus-visible::before{background:#FF3B30; animation:recBlink 1s ease-in-out infinite;}
   @keyframes recBlink{50%{opacity:.3;}}
 
-  .wt-quote .cw{border-radius:2px; transition:background .08s linear, box-shadow .08s linear;}
-  .wt-quote .cw.hl{background:var(--yellow); box-shadow:0 0 0 2px var(--yellow);}
 
   .video-viewer{display:flex; visibility:hidden; opacity:0; transition:opacity .25s ease, visibility 0s linear .25s;}
   .video-viewer.open{visibility:visible; opacity:1; transition:opacity .25s ease;}
@@ -721,7 +686,6 @@
   .tv-name a{color:inherit;}
   .tv-f{color:#6b6b6b; font-variant-numeric:tabular-nums;}
 
-  .wt-grid{grid-template-columns:repeat(auto-fit,minmax(280px,1fr)) !important;}
 
   /* Client screenshots — a deliberately un-grid-like "pinned photos"
      collage. CSS columns let screenshots keep their own natural heights
@@ -818,13 +782,6 @@
   <div class="wrap reveal">
     <p class="label">Video testimonials</p>
     <div class="tv-grid" id="testimonialScroller"></div>
-  </div>
-</section>
-
-<section class="written-testimonials">
-  <div class="wrap reveal">
-    <p class="label">What clients say</p>
-    <div class="wt-grid" id="wtGrid"></div>
   </div>
 </section>
 
@@ -1035,7 +992,9 @@
     if (!tile) return;
     const video = tile.querySelector('video');
     if (!video) return;
-    openVideoViewer(video.currentSrc || video.src || video.dataset.src, tile);
+    // data-full = the with-sound, higher-quality copy; the tile itself
+    // plays a small muted one.
+    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile);
   });
 
   // Before/after video results are plain reel-style tiles now, so they
@@ -1045,7 +1004,7 @@
     if (!tile) return;
     const video = tile.querySelector('video');
     if (!video) return;
-    openVideoViewer(video.currentSrc || video.src || video.dataset.src, tile);
+    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile);
   });
 
   /* ---------------------------------------------------------------
@@ -1189,10 +1148,60 @@
     });
   });
 
+  // ---- Media delivery ---------------------------------------------------
+  // Uploads are stored as the original files (5-36MB 1080p videos, which
+  // added up to ~212MB on this page). The homepage never needs that — a
+  // tile is ~180px wide. Cloudinary builds a resized, compressed copy from
+  // a transformation in the URL (once; after that it's served from its
+  // CDN cache), so every media src below goes through cld().
+  function cld(src, transform) {
+    if (!src || src.indexOf('/upload/') === -1) return src || '';
+    return src.replace('/upload/', '/upload/' + transform + '/');
+  }
+  const TILE_VIDEO_W = 540; // ~3x a 180px tile, sharp on retina phones
+  // Tiles always play muted, so their copy drops the audio track too.
+  const tileVideo = (src, w) => cld(src, `w_${w || TILE_VIDEO_W},q_auto,ac_none`);
+  // The lightbox plays with sound, bigger: full width up to 1080, compressed.
+  const fullVideo = (src) => cld(src, 'c_limit,w_1080,q_auto');
+  // A still frame (1s in) as a .jpg, shown until the video itself plays.
+  const videoPoster = (src, w) => cld(src, `so_1,w_${w || TILE_VIDEO_W},q_auto`).replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg$1');
+  const fitImage = (src, w) => cld(src, `c_limit,w_${w},q_auto,f_auto`);
+
+  // Tile videos start on their poster frame and only download/play while
+  // actually on screen; ones that leave the screen pause. Without this,
+  // every tile in every row — including the repeated copies the scrolling
+  // rows need — autoplays and downloads at the same time.
+  const lazyVideoIO = 'IntersectionObserver' in window
+    ? new IntersectionObserver((entries) => {
+        entries.forEach(({ target: v, isIntersecting }) => {
+          if (isIntersecting) {
+            if (!v.getAttribute('src')) v.src = v.dataset.src;
+            const p = v.play();
+            if (p && p.catch) p.catch(() => {});
+          } else if (!v.paused) {
+            v.pause();
+          }
+        });
+      }, { rootMargin: '0px' })
+    : null;
+  function observeVideos(root) {
+    root.querySelectorAll('video[data-src]').forEach((v) => {
+      if (lazyVideoIO) { lazyVideoIO.observe(v); return; }
+      v.src = v.dataset.src;
+      const p = v.play();
+      if (p && p.catch) p.catch(() => {});
+    });
+  }
+  function unobserveVideos(root) {
+    if (lazyVideoIO) root.querySelectorAll('video[data-src]').forEach((v) => lazyVideoIO.unobserve(v));
+  }
+  const tileVideoHtml = (src) => `<video data-src="${esc(tileVideo(src))}" data-full="${esc(fullVideo(src))}" poster="${esc(videoPoster(src))}" muted loop playsinline preload="none"></video>`;
+
   // scrollStep: +1 drifts content leftward (scrollLeft grows), -1 rightward.
   function setupMarquee(trackEl, itemHtmlList, cardWidthPx, gapPx, scrollStep) {
     const scroller = trackEl.parentElement;
     const m = marquees.get(scroller) || marqueeCreate(scroller);
+    unobserveVideos(trackEl);
     if (!itemHtmlList.length) { trackEl.innerHTML = ''; m.listWidth = 0; return; }
     const n = itemHtmlList.length;
     const estimatedList = n * (cardWidthPx + gapPx);
@@ -1202,6 +1211,7 @@
     const repeats = Math.ceil(containerWidth / estimatedList) + 3;
     trackEl.innerHTML = itemHtmlList.join('').repeat(repeats);
     [...trackEl.children].forEach((child, i) => { if (i >= n) child.setAttribute('aria-hidden', 'true'); });
+    observeVideos(trackEl);
     // Measure the real period instead of trusting the CSS-vs-JS constants
     // to agree; the estimate is only a fallback if layout isn't available.
     const first = trackEl.children[0], next = trackEl.children[n];
@@ -1219,25 +1229,16 @@
     const tiles = list.map((clip, i) => {
       const alt = i % 2 === 1 ? ' alt' : '';
       const ratio = esc(clip.ratio || '9/16');
-      return `<div class="tile${alt}" style="aspect-ratio:${ratio}"><video src="${esc(clip.src)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
+      return `<div class="tile${alt}" style="aspect-ratio:${ratio}">${tileVideoHtml(clip.src)}</div>`;
     });
     // ".right" rows drift left-to-right (content moves right, so the
     // scroll position decreases); the others drift right-to-left.
     setupMarquee(row, tiles, cardW, gap, row.classList.contains('right') ? -1 : 1);
   }
 
-  // A testimonial without a manually-uploaded poster gets one derived
-  // straight from its own video via Cloudinary's frame-grab transform
-  // (so_0 = the frame at 0s, delivered as a .jpg instead of the video) —
-  // no extra upload needed, and it works for videos uploaded before this
-  // existed too, since it's computed from the video URL at render time.
-  function cloudinaryVideoPoster(src) {
-    if (!src || !src.includes('/video/upload/')) return '';
-    return src.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg$1');
-  }
-
   function renderVideoTestimonials(list) {
     const scroller = document.getElementById('testimonialScroller');
+    unobserveVideos(scroller);
     scroller.innerHTML = '';
     if (!list.length) { scroller.innerHTML = '<p class="empty-note">Video testimonials will appear here once uploaded.</p>'; return; }
     list.forEach((t) => {
@@ -1245,10 +1246,11 @@
       card.className = 'tv';
       const h = (t.handle || '').replace('@', '');
       const who = h ? `<a href="https://instagram.com/${esc(h)}" target="_blank" rel="noopener">@${esc(h)}</a>` : esc(t.name);
-      const poster = t.poster || cloudinaryVideoPoster(t.src);
+      // No manually-uploaded poster → a frame grabbed from the video itself.
+      const poster = t.poster ? fitImage(t.poster, 720) : videoPoster(t.src, 720);
       card.innerHTML = `
         <div class="tv-player">
-          <video preload="metadata" muted autoplay loop playsinline poster="${esc(poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
+          <video data-src="${esc(tileVideo(t.src, 720))}" poster="${esc(poster)}" muted loop playsinline preload="none" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)}) with sound"></button>
         </div>
         ${t.quote ? `<p class="tv-quote">"${esc(t.quote)}"</p>` : ''}
@@ -1259,9 +1261,10 @@
       // shape, but nothing constrains the ratio once it's actually
       // playing, so a landscape testimonial plays landscape, not cropped
       // into the portrait tile shape.
-      cover.addEventListener('click', () => openVideoViewer(t.src, cover));
+      cover.addEventListener('click', () => openVideoViewer(fullVideo(t.src), cover));
       scroller.appendChild(card);
     });
+    observeVideos(scroller);
   }
 
   // Tilt/offset per screenshot come from a hash of its id, not
@@ -1288,39 +1291,8 @@
     section.hidden = !list.length;
     grid.innerHTML = list.map((s) => {
       const { rot, dy } = collageJitter(String(s.id));
-      return `<button type="button" class="cs-item" data-src="${esc(s.src)}" style="--rot:${rot}deg; --dy:${dy}px" aria-label="View client screenshot larger"><img src="${esc(s.src)}" alt="Client review screenshot" loading="lazy" decoding="async"></button>`;
+      return `<button type="button" class="cs-item" data-src="${esc(fitImage(s.src, 1600))}" style="--rot:${rot}deg; --dy:${dy}px" aria-label="View client screenshot larger"><img src="${esc(fitImage(s.src, 700))}" alt="Client review screenshot" loading="lazy" decoding="async"></button>`;
     }).join('');
-  }
-
-  function renderWrittenTestimonials(list) {
-    const grid = document.getElementById('wtGrid');
-    if (!list.length) { grid.innerHTML = '<p class="empty-note">Client quotes will appear here once added.</p>'; return; }
-    grid.innerHTML = list.map((t) => `
-      <div class="wt-card">
-        <p class="wt-quote">"${esc(t.quote)}"</p>
-        <p class="wt-name">— ${esc(t.name)}</p>
-      </div>`).join('');
-    if (!MOTION) return;
-    const quotes = [...grid.querySelectorAll('.wt-quote')];
-    quotes.forEach((q) => {
-      q.innerHTML = q.textContent.trim().split(/\s+/).map((w) => `<span class="cw">${w}</span>`).join(' ');
-    });
-    if (!('IntersectionObserver' in window) || !quotes.length) return;
-    const capIO = new IntersectionObserver((entries) => {
-      if (!entries[0].isIntersecting) return;
-      capIO.disconnect();
-      quotes.forEach((q, qi) => {
-        const ws = [...q.querySelectorAll('.cw')];
-        ws.forEach((w, i) => {
-          setTimeout(() => {
-            if (i > 0) ws[i - 1].classList.remove('hl');
-            w.classList.add('hl');
-            if (i === ws.length - 1) setTimeout(() => w.classList.remove('hl'), 260);
-          }, 300 + qi * 250 + i * 110);
-        });
-      });
-    }, { threshold: 0.4 });
-    capIO.observe(grid);
   }
 
   function renderBeforeAfter(list) {
@@ -1336,8 +1308,8 @@
       return w > 0 && h > 0 && Math.abs(w / h - 9 / 16) < 0.01;
     };
     const cardHtml = (c) => isPortrait916(c.ratio)
-      ? `<div class="tile ba-crop"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`
-      : `<div class="tile" style="aspect-ratio:${esc(c.ratio)}"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
+      ? `<div class="tile ba-crop">${tileVideoHtml(c.video)}</div>`
+      : `<div class="tile" style="aspect-ratio:${esc(c.ratio)}">${tileVideoHtml(c.video)}</div>`;
     const mobile = window.innerWidth <= 600;
     const cardW = mobile ? 135 : 180;
     const gap = mobile ? 8 : 12;
@@ -1353,7 +1325,7 @@
       const src = process[v.dataset.shot];
       if (!src) return;
       const img = new Image();
-      img.src = src;
+      img.src = fitImage(src, 900);
       img.alt = '';
       img.loading = 'lazy';
       v.replaceChildren(img);
@@ -1411,7 +1383,6 @@
       buildRow('row2', lastReels.row2 || []);
       buildRow('row3', lastReels.row3 || []);
       renderVideoTestimonials(content.videoTestimonials || []);
-      renderWrittenTestimonials(content.writtenTestimonials || []);
       renderClientScreenshots(content.clientScreenshots || []);
       renderBeforeAfter(lastBeforeAfter);
       renderProcessShots(content.process || {});

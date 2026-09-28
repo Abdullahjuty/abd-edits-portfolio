@@ -158,36 +158,19 @@
 
           <!-- Before / after -->
           <section class="panel" data-panel="before-after">
-            <p class="text-sm text-[#6E6E6A] mb-5">Client growth results shown right under the hero section.</p>
+            <p class="text-sm text-[#6E6E6A] mb-5">Client growth result videos shown right under the hero section, in a single scrolling row exactly like Reels.</p>
             <form id="ba-form" class="grid sm:grid-cols-2 gap-4 mb-6">
-              <label class="field"><span>Client name</span><input type="text" name="client" required /></label>
-              <label class="field"><span>Handle (optional)</span><input type="text" name="handle" /></label>
-              <label class="field sm:col-span-2"><span>Show this result as</span>
-                <select name="baType" id="ba-type">
-                  <option value="images">Two screenshots (before + after)</option>
-                  <option value="video">One video (shows before &amp; after together)</option>
+              <label class="field sm:col-span-2"><span>Label (for you only — not shown on the site, just helps you tell results apart in this list)</span><input type="text" name="label" placeholder="e.g. Coffee shop client result" /></label>
+              <label class="field"><span>Aspect ratio</span>
+                <select name="ratio">
+                  <option value="9/16">Portrait (9:16)</option>
+                  <option value="16/9">Landscape (16:9)</option>
+                  <option value="1/1">Square (1:1)</option>
+                  <option value="4/5">Portrait (4:5)</option>
+                  <option value="auto">Auto (match original video)</option>
                 </select>
               </label>
-              <div id="ba-images-fields" class="contents">
-                <label class="field"><span>Before screenshot</span><input type="file" name="before" accept="image/jpeg,image/png,image/webp" /></label>
-                <label class="field"><span>After screenshot</span><input type="file" name="after" accept="image/jpeg,image/png,image/webp" /></label>
-              </div>
-              <div id="ba-video-fields" class="contents" hidden>
-                <label class="field"><span>Before/after video</span><input type="file" name="video" accept="video/mp4,video/webm,video/quicktime" /></label>
-                <label class="field"><span>Aspect ratio</span>
-                  <select name="baRatio">
-                    <option value="9/16">Portrait (9:16)</option>
-                    <option value="16/9">Landscape (16:9)</option>
-                    <option value="1/1">Square (1:1)</option>
-                    <option value="4/5">Portrait (4:5)</option>
-                    <option value="auto">Auto (match original video)</option>
-                  </select>
-                </label>
-              </div>
-              <label class="field sm:col-span-2">
-                <span>Stats, one per line as Label|Before|After</span>
-                <textarea name="stats" rows="3" placeholder="Followers|1.2K|18K&#10;Avg. views per reel|3K|120K" class="font-mono"></textarea>
-              </label>
+              <label class="field"><span>Video file</span><input type="file" name="media" accept="video/mp4,video/webm,video/quicktime" required /></label>
               <div class="sm:col-span-2 flex items-center gap-3">
                 <button class="bg-yellow text-[#0B0B0B] font-bold uppercase text-sm px-6 py-2.5 rounded-full hover:brightness-95 transition" type="submit">Add result</button>
                 <p class="text-sm" id="ba-status"></p>

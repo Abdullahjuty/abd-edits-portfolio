@@ -362,39 +362,21 @@ app.delete(
   })
 );
 
-// Before/after client results
+// Before/after client result videos — a single scrolling row, same shape
+// as a reel (video + ratio + admin-only label), just its own section.
 app.post(
   "/api/admin/before-after",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { client, handle, stats, type, before, beforePublicId, after, afterPublicId, video, videoPublicId, ratio } = req.body || {};
-    if (!client) return res.status(400).json({ error: "Client name is required" });
-    const entryType = type === "video" ? "video" : "images";
-    if (entryType === "video" && !video) return res.status(400).json({ error: "video is required for a video result" });
-
-    // stats textarea format: one "Label|beforeVal|afterVal" per line.
-    // Stored as an array of objects, not an array of arrays — Firestore
-    // does not support nested arrays (an array directly containing arrays).
-    const parsedStats = (stats || "")
-      .split("\n")
-      .map((line) => line.split("|").map((s) => s.trim()))
-      .filter((parts) => parts.length === 3 && parts[0])
-      .map(([label, beforeVal, afterVal]) => ({ label, beforeVal, afterVal }));
-
+    const { video, videoPublicId, ratio, label } = req.body || {};
+    if (!video) return res.status(400).json({ error: "video is required" });
     const content = await readContent();
     const entry = {
       id: newId("ba"),
-      client,
-      handle: handle || "",
-      type: entryType,
-      before: entryType === "images" ? before || "" : "",
-      beforePublicId: entryType === "images" ? beforePublicId || "" : "",
-      after: entryType === "images" ? after || "" : "",
-      afterPublicId: entryType === "images" ? afterPublicId || "" : "",
-      video: entryType === "video" ? video : "",
-      videoPublicId: entryType === "video" ? videoPublicId || "" : "",
-      ratio: entryType === "video" ? sanitizeRatio(ratio) : "",
-      stats: parsedStats,
+      video,
+      videoPublicId: videoPublicId || "",
+      ratio: sanitizeRatio(ratio),
+      label: label || "",
     };
     content.beforeAfter.push(entry);
     await writeContent(content);
@@ -410,14 +392,7 @@ app.delete(
     const entry = content.beforeAfter.find((b) => b.id === req.params.id);
     content.beforeAfter = content.beforeAfter.filter((b) => b.id !== req.params.id);
     await writeContent(content);
-    if (entry) {
-      if (entry.type === "video") {
-        await destroyCloudinaryAsset(entry.videoPublicId, "video");
-      } else {
-        await destroyCloudinaryAsset(entry.beforePublicId, "image");
-        await destroyCloudinaryAsset(entry.afterPublicId, "image");
-      }
-    }
+    if (entry) await destroyCloudinaryAsset(entry.videoPublicId, "video");
     res.json({ ok: true });
   })
 );

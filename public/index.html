@@ -532,33 +532,7 @@
      is what actually prevents the gap bug, not just "duplicate once". */
   .bah-track{display:flex; align-items:flex-start; width:max-content; animation:marquee-left var(--duration,42s) linear infinite;}
   @media (prefers-reduced-motion: reduce){.bah-track{animation:none;}}
-  /* Same width as the reels tiles (--card-w, defined above) — this
-     section is used for single before/after clips the same size as a
-     reel, not a separate card size. */
-  .bah-card{
-    flex:0 0 var(--card-w,180px);
-    margin-right:var(--gap);
-    background:var(--bg); border-radius:var(--radius); padding:16px; box-shadow:0 1px 0 rgba(17,17,17,0.08);
-  }
-  .bah-head{display:flex; justify-content:space-between; align-items:baseline; gap:8px; margin:0 0 12px;}
-  .bah-name{font-size:15px; font-weight:700; margin:0;}
-  .bah-handle{font-size:12px; color:var(--text-secondary);}
-  .bah-shots{display:grid; grid-template-columns:1fr 1fr; gap:8px; margin:0 0 14px;}
-  .bah-shot{position:relative; aspect-ratio:9/16; background:var(--card-alt); border-radius:6px; overflow:hidden; border:0; padding:0; cursor:zoom-in;}
-  .bah-shot img{width:100%; height:100%; object-fit:cover; object-position:top;}
-  .bah-shot.empty{cursor:default; display:flex; align-items:center; justify-content:center; font-size:11px; color:var(--text-secondary); text-align:center; padding:8px;}
-  .bah-tag{position:absolute; top:8px; left:8px; font-size:11px; font-weight:800; text-transform:uppercase; padding:4px 8px; border-radius:4px; background:#fff; color:var(--text);}
-  .bah-shot.after .bah-tag{background:var(--yellow);}
-  .bah-stats{list-style:none; margin:0; padding:0; display:grid; gap:8px;}
-  .bah-stats li{display:flex; justify-content:space-between; align-items:center; font-size:13px; padding-top:8px; border-top:1px solid var(--border);}
-  .bah-stats li span{color:var(--text-secondary);}
-  .bah-stats li b{font-weight:700;}
-  .bah-stats li b em{font-style:normal; background:var(--yellow); padding:1px 5px; border-radius:3px;}
   .ba-home .book-btn{margin-top:40px;}
-  .shot-viewer{position:fixed; inset:0; z-index:1000; background:rgba(17,17,17,0.85); display:none; align-items:center; justify-content:center; padding:24px;}
-  .shot-viewer.open{display:flex;}
-  .shot-viewer img{max-height:88vh; width:auto; border-radius:var(--radius);}
-  .shot-viewer button{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:0; background:var(--yellow); font-size:22px; font-weight:700; cursor:pointer;}
   /* Large-in-page video viewer — a bigger view on top of the page, not
      the browser's real Fullscreen API (which hides the address bar and
      feels jarring on mobile); same overlay pattern as the screenshot
@@ -595,17 +569,8 @@
   .book-btn:hover::before, .book-btn:focus-visible::before{background:#FF3B30; animation:recBlink 1s ease-in-out infinite;}
   @keyframes recBlink{50%{opacity:.3;}}
 
-  .bah-stats li b em{display:inline-block; font-variant-numeric:tabular-nums;}
-  .bah-stats li b em.pop{animation:statPop .45s var(--ease);}
-  @keyframes statPop{40%{transform:scale(1.18);} to{transform:none;}}
-
   .wt-quote .cw{border-radius:2px; transition:background .08s linear, box-shadow .08s linear;}
   .wt-quote .cw.hl{background:var(--yellow); box-shadow:0 0 0 2px var(--yellow);}
-
-  .shot-viewer{display:flex; visibility:hidden; opacity:0; transition:opacity .25s ease, visibility 0s linear .25s;}
-  .shot-viewer.open{visibility:visible; opacity:1; transition:opacity .25s ease;}
-  .shot-viewer img{transform:scale(.94); transition:transform .4s var(--ease);}
-  .shot-viewer.open img{transform:none;}
 
   .video-viewer{display:flex; visibility:hidden; opacity:0; transition:opacity .25s ease, visibility 0s linear .25s;}
   .video-viewer.open{visibility:visible; opacity:1; transition:opacity .25s ease;}
@@ -615,7 +580,6 @@
   @media (prefers-reduced-motion: reduce){
     .tile::after, .t-card::after, .tile:hover::after, .t-card:hover::after{transition:none;}
     .book-btn:hover::before, .book-btn:focus-visible::before{animation:none;}
-    .shot-viewer, .shot-viewer img{transition:none;}
     .video-viewer, .video-viewer video{transition:none;}
   }
 
@@ -816,11 +780,6 @@
   </div>
 </section>
 
-<div class="shot-viewer" id="shotViewer" role="dialog" aria-modal="true" aria-label="Screenshot">
-  <button type="button" aria-label="Close">×</button>
-  <img alt="">
-</div>
-
 <div class="video-viewer" id="videoViewer" role="dialog" aria-modal="true" aria-label="Video">
   <button type="button" aria-label="Close">×</button>
   <video controls playsinline></video>
@@ -979,25 +938,6 @@
   } else {
     stepsEl.classList.add('go');
   }
-
-  /* Before/after screenshot viewer (event delegation — safe before data arrives) */
-  const viewer = document.getElementById('shotViewer');
-  const viewerImg = viewer.querySelector('img');
-  const viewerClose = viewer.querySelector('button');
-  let lastFocus = null;
-  document.getElementById('bahGrid').addEventListener('click', (e) => {
-    const b = e.target.closest('.bah-shot[data-src]');
-    if (!b) return;
-    lastFocus = b;
-    viewerImg.src = b.dataset.src;
-    viewerImg.alt = b.getAttribute('aria-label');
-    viewer.classList.add('open');
-    viewerClose.focus();
-  });
-  const shutViewer = () => { viewer.classList.remove('open'); if (lastFocus) lastFocus.focus(); };
-  viewerClose.addEventListener('click', shutViewer);
-  viewer.addEventListener('click', (e) => { if (e.target === viewer) shutViewer(); });
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && viewer.classList.contains('open')) shutViewer(); });
 
   /* -----------------------------------------------------------------
      Video lightbox — clicking any reel tile or before/after video opens
@@ -1169,22 +1109,10 @@
   function renderBeforeAfter(list) {
     const grid = document.getElementById('bahGrid');
     if (!list.length) { grid.innerHTML = '<p class="empty-note">Client before/after results will appear here once added.</p>'; return; }
-    const shot = (src, kind, name) => src
-      ? `<button type="button" class="bah-shot ${kind}" data-src="${esc(src)}" aria-label="View ${kind} screenshot for ${esc(name)}"><img src="${esc(src)}" alt="${esc(name)} ${kind}" loading="lazy"><span class="bah-tag">${kind}</span></button>`
-      : `<div class="bah-shot ${kind} empty"><span class="bah-tag">${kind}</span>Add ${kind} screenshot</div>`;
-    // Video results render as a bare tile — same markup/classes as a reel
-    // tile — so they look and behave (hover zoom, click-to-play) exactly
-    // like the reels row. Only the older screenshot-pair results still
-    // use the bordered card with name/handle/stats.
-    const cardHtml = (c) => c.type === 'video'
-      ? `<div class="tile" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`
-      : `<article class="bah-card">
-        ${c.client ? `<div class="bah-head"><p class="bah-name">${esc(c.client)}</p><span class="bah-handle">${esc(c.handle)}</span></div>` : ''}
-        <div class="bah-shots">${shot(c.before, 'before', c.client || 'client')}${shot(c.after, 'after', c.client || 'client')}</div>
-        <ul class="bah-stats">${(c.stats || []).map(({ label, beforeVal, afterVal }) => `<li><span>${esc(label)}</span><b>${esc(beforeVal)} → <em data-from="${esc(beforeVal)}" data-to="${esc(afterVal)}">${esc(MOTION ? beforeVal : afterVal)}</em></b></li>`).join('')}</ul>
-      </article>`;
-    // Same width as the reels tiles — this row shows clips the same
-    // size as a reel, not its own separate card size.
+    // Same markup/classes as a reel tile, so this row looks and behaves
+    // exactly like the reels rows (hover zoom, click-to-play lightbox,
+    // same size).
+    const cardHtml = (c) => `<div class="tile" style="aspect-ratio:${esc(c.ratio || '9/16')}"><video src="${esc(c.video)}" muted autoplay loop playsinline preload="metadata"></video></div>`;
     const mobile = window.innerWidth <= 600;
     const cardW = mobile ? 135 : 180;
     const gap = mobile ? 8 : 12;
@@ -1193,39 +1121,6 @@
     grid.innerHTML = '';
     grid.appendChild(track);
     setupMarquee(track, list.map(cardHtml), cardW, gap);
-    if (!MOTION || !('IntersectionObserver' in window)) return;
-    const parseNum = (s) => {
-      const m = String(s).trim().match(/^([\d.,]+)\s*([KkMm]?)$/);
-      if (!m) return null;
-      let n = parseFloat(m[1].replace(/,/g, ''));
-      const u = m[2].toUpperCase();
-      if (u === 'K') n *= 1e3;
-      if (u === 'M') n *= 1e6;
-      return n;
-    };
-    const trim = (x) => (x >= 100 ? String(Math.round(x)) : x.toFixed(1).replace(/\.0$/, ''));
-    const fmt = (n) => (n >= 1e6 ? trim(n / 1e6) + 'M' : n >= 1e3 ? trim(n / 1e3) + 'K' : String(Math.round(n)));
-    function countUp(em) {
-      const from = parseNum(em.dataset.from), to = parseNum(em.dataset.to);
-      if (from === null || to === null) { em.textContent = em.dataset.to; return; }
-      const D = 1400, s = performance.now();
-      const step = (now) => {
-        const t = Math.min(1, (now - s) / D), e = t === 1 ? 1 : 1 - Math.pow(2, -10 * t);
-        em.textContent = t < 1 ? fmt(from + (to - from) * e) : em.dataset.to;
-        if (t < 1) requestAnimationFrame(step); else em.classList.add('pop');
-      };
-      requestAnimationFrame(step);
-    }
-    const cards = [...grid.querySelectorAll('.bah-card')];
-    const cardIO = new IntersectionObserver((entries) => {
-      entries.forEach((en) => {
-        if (!en.isIntersecting) return;
-        cardIO.unobserve(en.target);
-        const delay = cards.indexOf(en.target) * 140;
-        setTimeout(() => en.target.querySelectorAll('em[data-to]').forEach(countUp), delay);
-      });
-    }, { threshold: 0.5 });
-    cards.forEach((c) => cardIO.observe(c));
   }
 
   function renderProcessShots(process) {

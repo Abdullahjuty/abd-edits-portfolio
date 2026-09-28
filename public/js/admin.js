@@ -365,72 +365,28 @@ function renderWrittenTestimonials(list) {
 const baForm = document.getElementById("ba-form");
 const baStatus = document.getElementById("ba-status");
 const baList = document.getElementById("ba-list");
-const baTypeSelect = document.getElementById("ba-type");
-const baImagesFields = document.getElementById("ba-images-fields");
-const baVideoFields = document.getElementById("ba-video-fields");
-
-function updateBaFieldsVisibility() {
-  const isVideo = baTypeSelect.value === "video";
-  baImagesFields.hidden = isVideo;
-  baVideoFields.hidden = !isVideo;
-}
-baTypeSelect.addEventListener("change", updateBaFieldsVisibility);
-updateBaFieldsVisibility();
 
 baForm.addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = baForm.querySelector('button[type="submit"]');
   const formData = new FormData(baForm);
-  const type = formData.get("baType") === "video" ? "video" : "images";
+  const file = formData.get("media");
+  const ratioChoice = formData.get("ratio");
+  const label = formData.get("label");
   btn.disabled = true;
+  baStatus.textContent = "Uploading… 0%";
   try {
-    const payload = {
-      client: formData.get("client"),
-      handle: formData.get("handle"),
-      stats: formData.get("stats"),
-      type,
-    };
-
-    if (type === "video") {
-      const videoFile = formData.get("video");
-      if (!videoFile || videoFile.size === 0) throw new Error("Choose a video file first.");
-      const ratio = await resolveRatio(formData.get("baRatio"), videoFile);
-      baStatus.textContent = "Uploading video… 0%";
-      const media = await uploadToCloudinary(videoFile, "abd-edits/before-after", "video", (pct) => {
-        baStatus.textContent = `Uploading video… ${pct}%`;
-      });
-      payload.video = media.url;
-      payload.videoPublicId = media.publicId;
-      payload.ratio = ratio;
-    } else {
-      const beforeFile = formData.get("before");
-      const afterFile = formData.get("after");
-      if (beforeFile && beforeFile.size > 0) {
-        baStatus.textContent = "Uploading before… 0%";
-        const beforeMedia = await uploadToCloudinary(beforeFile, "abd-edits/before-after", "image", (pct) => {
-          baStatus.textContent = `Uploading before… ${pct}%`;
-        });
-        payload.before = beforeMedia.url;
-        payload.beforePublicId = beforeMedia.publicId;
-      }
-      if (afterFile && afterFile.size > 0) {
-        baStatus.textContent = "Uploading after… 0%";
-        const afterMedia = await uploadToCloudinary(afterFile, "abd-edits/before-after", "image", (pct) => {
-          baStatus.textContent = `Uploading after… ${pct}%`;
-        });
-        payload.after = afterMedia.url;
-        payload.afterPublicId = afterMedia.publicId;
-      }
-    }
-
+    const ratio = await resolveRatio(ratioChoice, file);
+    const media = await uploadToCloudinary(file, "abd-edits/before-after", "video", (pct) => {
+      baStatus.textContent = `Uploading… ${pct}%`;
+    });
     await api("/api/admin/before-after", {
       method: "POST",
-      body: JSON.stringify(payload),
+      body: JSON.stringify({ video: media.url, videoPublicId: media.publicId, ratio, label }),
       headers: { "Content-Type": "application/json" },
     });
     baStatus.textContent = "✅ Added successfully.";
     baForm.reset();
-    updateBaFieldsVisibility();
     loadDashboard();
   } catch (err) {
     baStatus.textContent = `❌ Failed: ${err.message}`;
@@ -442,8 +398,7 @@ baForm.addEventListener("submit", async (e) => {
 function renderBeforeAfter(list) {
   baList.innerHTML = "";
   list.forEach((b) => {
-    const kind = b.type === "video" ? "video" : `${b.stats.length} stat rows`;
-    deleteRow(baList, `${b.client} (${kind})`, () =>
+    deleteRow(baList, b.label || "(untitled result)", () =>
       api(`/api/admin/before-after/${b.id}`, { method: "DELETE" })
     );
   });

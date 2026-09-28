@@ -707,12 +707,17 @@
   .m4-grid i:nth-child(6){background:linear-gradient(160deg,#bdbdbd,#3f3f3f);}
   .m4-grid i::after{content:'\25B6  ' attr(data-v); position:absolute; left:.4em; bottom:.35em; color:#fff; font-style:normal; font-size:.85em; font-weight:600; text-shadow:0 1px 2px rgba(0,0,0,.5);}
 
-  .tv-grid{display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:24px;}
-  @media(max-width:760px){
-    .tv-grid{grid-template-columns:none; grid-auto-flow:column; grid-auto-columns:78%; gap:16px; overflow-x:auto; scroll-snap-type:x mandatory; scrollbar-width:none; padding-bottom:4px;}
-    .tv-grid::-webkit-scrollbar{display:none;}
-    .tv{scroll-snap-align:start;}
-  }
+  /* Same continuous marquee as the reels/before-after rows — overflow
+     hidden wrapper (.tv-grid) around a flex track (.tv-cards-track) that
+     setupMarquee() populates and animates. ".tv-track" below is a
+     different, pre-existing thing (the little scrub line inside each
+     card's play bar), so the marquee track gets its own class name. */
+  .tv-grid{overflow:hidden; width:100%; --gap:16px;}
+  @media(max-width:600px){.tv-grid{--gap:12px;}}
+  .tv-grid:hover .tv-cards-track{animation-play-state:paused;}
+  .tv-cards-track{display:flex; align-items:flex-start; width:max-content; animation:marquee-left var(--duration,42s) linear infinite;}
+  @media (prefers-reduced-motion: reduce){.tv-cards-track{animation:none;}}
+  .tv{flex:0 0 var(--card-w,180px); margin-right:var(--gap); text-align:left;}
   .tv-player{position:relative; aspect-ratio:9/16; border-radius:16px; overflow:hidden; background:#111; border:1px solid rgba(17,17,17,.12); box-shadow:0 18px 40px -24px rgba(17,17,17,.55);}
   .tv-player video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#111;}
   .tv-cover{position:absolute; inset:0; width:100%; padding:0; border:0; background:transparent; cursor:pointer; color:#fff; font:inherit;}
@@ -721,16 +726,16 @@
   .tv-big svg{width:24%; height:auto;}
   .tv-cover:hover .tv-big, .tv-cover:focus-visible .tv-big{transform:translate(-50%,-50%) scale(1.06); background:#000;}
   .tv-cover:focus-visible{outline:3px solid var(--yellow); outline-offset:-3px; border-radius:16px;}
-  .tv-bar{position:absolute; left:6px; right:6px; bottom:6px; height:42px; border-radius:10px; background:rgba(8,8,8,.82); display:flex; align-items:center; gap:12px; padding:0 14px; font-size:14px; font-weight:600;}
-  .tv-bar svg{width:14px; height:14px; flex-shrink:0;}
+  .tv-bar{position:absolute; left:6px; right:6px; bottom:6px; height:36px; border-radius:9px; background:rgba(8,8,8,.82); display:flex; align-items:center; gap:8px; padding:0 10px; font-size:12px; font-weight:600;}
+  .tv-bar svg{width:12px; height:12px; flex-shrink:0;}
   .tv-time{font-variant-numeric:tabular-nums;}
   .tv-track{flex:1; height:2px; background:rgba(255,255,255,.45); position:relative; border-radius:2px;}
   .tv-track::before{content:''; position:absolute; left:0; top:50%; width:7px; height:7px; border-radius:50%; background:#fff; transform:translateY(-50%); z-index:1;}
   .tv-cover:hover .tv-track::after{content:''; position:absolute; inset:0; background:var(--yellow); transform-origin:left; animation:tvFill 2.6s linear forwards;}
   @keyframes tvFill{from{transform:scaleX(0);} to{transform:scaleX(1);}}
-  .tv-dots{letter-spacing:1px; font-size:16px; line-height:1;}
-  .tv-quote{margin:18px 0 8px; font-size:17px; font-weight:500; line-height:1.45; color:var(--text); text-wrap:pretty;}
-  .tv-meta{display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:14px;}
+  .tv-dots{letter-spacing:1px; font-size:14px; line-height:1;}
+  .tv-quote{margin:12px 0 6px; font-size:13px; font-weight:500; line-height:1.4; color:var(--text); text-wrap:pretty;}
+  .tv-meta{display:flex; justify-content:space-between; align-items:baseline; gap:8px; font-size:12px; flex-wrap:wrap;}
   .tv-name{font-weight:600; color:var(--text);}
   .tv-name a{color:inherit;}
   .tv-f{color:#6b6b6b; font-variant-numeric:tabular-nums;}
@@ -1034,46 +1039,76 @@
   }
 
   const tvPlaySvg = `<svg viewBox="0 0 20 22" aria-hidden="true"><path d="M2 1.5v19l17-9.5z" fill="#fff"/></svg>`;
+
+  // A testimonial without a manually-uploaded poster gets one derived
+  // straight from its own video via Cloudinary's frame-grab transform
+  // (so_0 = the frame at 0s, delivered as a .jpg instead of the video) —
+  // no extra upload needed, and it works for videos uploaded before this
+  // existed too, since it's computed from the video URL at render time.
+  function cloudinaryVideoPoster(src) {
+    if (!src || !src.includes('/video/upload/')) return '';
+    return src.replace('/video/upload/', '/video/upload/so_0/').replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg$1');
+  }
+
   function renderVideoTestimonials(list) {
     const scroller = document.getElementById('testimonialScroller');
-    scroller.innerHTML = '';
     if (!list.length) { scroller.innerHTML = '<p class="empty-note">Video testimonials will appear here once uploaded.</p>'; return; }
-    const allVideos = [];
-    list.forEach((t) => {
-      const card = document.createElement('article');
-      card.className = 'tv';
+    const cardHtml = (t) => {
       const h = (t.handle || '').replace('@', '');
       const who = h ? `<a href="https://instagram.com/${esc(h)}" target="_blank" rel="noopener">@${esc(h)}</a>` : esc(t.name);
-      card.innerHTML = `
+      const poster = t.poster || cloudinaryVideoPoster(t.src);
+      return `<article class="tv">
         <div class="tv-player" style="aspect-ratio:${esc(t.ratio || '9/16')}">
-          <video preload="none" playsinline poster="${esc(t.poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
+          <video preload="none" playsinline poster="${esc(poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)})">
             <span class="tv-big">${tvPlaySvg}</span>
             <span class="tv-bar">${tvPlaySvg}<span class="tv-time">${esc(t.duration)}</span><span class="tv-track"></span><span class="tv-dots" aria-hidden="true">•••</span></span>
           </button>
         </div>
         ${t.quote ? `<p class="tv-quote">"${esc(t.quote)}"</p>` : ''}
-        <div class="tv-meta"${t.quote ? '' : ' style="margin-top:18px"'}><span class="tv-name">${who}</span>${t.followers ? `<span class="tv-f">${esc(t.followers)}</span>` : ''}</div>`;
-      const video = card.querySelector('video');
-      const cover = card.querySelector('.tv-cover');
-      allVideos.push(video);
-      cover.addEventListener('click', () => {
-        allVideos.forEach((v) => { if (v !== video) v.pause(); });
-        card.classList.add('playing');
-        video.controls = true;
-        const pr = video.play();
-        if (pr && pr.catch) pr.catch(() => {});
-        video.focus();
-      });
-      video.addEventListener('ended', () => {
-        card.classList.remove('playing');
-        video.controls = false;
-        video.load();
-        cover.focus();
-      });
-      scroller.appendChild(card);
-    });
+        <div class="tv-meta"${t.quote ? '' : ' style="margin-top:18px"'}><span class="tv-name">${who}</span>${t.followers ? `<span class="tv-f">${esc(t.followers)}</span>` : ''}</div>
+      </article>`;
+    };
+    const mobile = window.innerWidth <= 600;
+    const cardW = mobile ? 135 : 180;
+    const gap = mobile ? 8 : 12;
+    const track = document.createElement('div');
+    track.className = 'tv-cards-track';
+    scroller.innerHTML = '';
+    scroller.appendChild(track);
+    setupMarquee(track, list.map(cardHtml), cardW, gap);
   }
+
+  // Delegated once — covers every card, including ones added later when
+  // content loads or the row is rebuilt on resize. A video plays in place
+  // rather than in a lightbox, so the marquee pauses for as long as any
+  // testimonial is actually playing, not just on hover.
+  const tvScroller = document.getElementById('testimonialScroller');
+  tvScroller.addEventListener('click', (e) => {
+    const cover = e.target.closest('.tv-cover');
+    if (!cover) return;
+    const card = cover.closest('.tv');
+    const video = card.querySelector('video');
+    tvScroller.querySelectorAll('video').forEach((v) => { if (v !== video) v.pause(); });
+    card.classList.add('playing');
+    video.controls = true;
+    const pr = video.play();
+    if (pr && pr.catch) pr.catch(() => {});
+    video.focus();
+  });
+  const tvSetTrackState = (video, state) => {
+    const track = video.closest('.tv-grid').querySelector('.tv-cards-track');
+    if (track) track.style.animationPlayState = state;
+  };
+  tvScroller.addEventListener('play', (e) => { if (e.target.tagName === 'VIDEO') tvSetTrackState(e.target, 'paused'); }, true);
+  tvScroller.addEventListener('pause', (e) => { if (e.target.tagName === 'VIDEO') tvSetTrackState(e.target, ''); }, true);
+  tvScroller.addEventListener('ended', (e) => {
+    if (e.target.tagName !== 'VIDEO') return;
+    const card = e.target.closest('.tv');
+    card.classList.remove('playing');
+    e.target.controls = false;
+    e.target.load();
+  }, true);
 
   function renderWrittenTestimonials(list) {
     const grid = document.getElementById('wtGrid');
@@ -1158,6 +1193,7 @@
 
   let lastReels = null;
   let lastBeforeAfter = null;
+  let lastVideoTestimonials = null;
 
   function rebuildMarquees() {
     if (!lastReels) return;
@@ -1165,6 +1201,7 @@
     buildRow('row2', lastReels.row2 || []);
     buildRow('row3', lastReels.row3 || []);
     if (lastBeforeAfter) renderBeforeAfter(lastBeforeAfter);
+    if (lastVideoTestimonials) renderVideoTestimonials(lastVideoTestimonials);
   }
   // Rebuilding on resize (debounced) is what keeps the repeat-count
   // genuinely dynamic per screen size — a phone rotated to landscape or
@@ -1182,10 +1219,11 @@
       const content = await res.json();
       lastReels = content.reels || { row1: [], row2: [], row3: [] };
       lastBeforeAfter = content.beforeAfter || [];
+      lastVideoTestimonials = content.videoTestimonials || [];
       buildRow('row1', lastReels.row1 || []);
       buildRow('row2', lastReels.row2 || []);
       buildRow('row3', lastReels.row3 || []);
-      renderVideoTestimonials(content.videoTestimonials || []);
+      renderVideoTestimonials(lastVideoTestimonials);
       renderWrittenTestimonials(content.writtenTestimonials || []);
       renderBeforeAfter(lastBeforeAfter);
       renderProcessShots(content.process || {});

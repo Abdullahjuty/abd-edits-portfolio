@@ -756,7 +756,7 @@
 
 <div class="video-viewer" id="videoViewer" role="dialog" aria-modal="true" aria-label="Video">
   <button type="button" aria-label="Close">×</button>
-  <video controls playsinline></video>
+  <video controls controlslist="nodownload" playsinline></video>
 </div>
 
 <section class="proof" id="work">
@@ -948,6 +948,9 @@
   videoViewerClose.addEventListener('click', shutVideoViewer);
   videoViewer.addEventListener('click', (e) => { if (e.target === videoViewer) shutVideoViewer(); });
   document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && videoViewer.classList.contains('open')) shutVideoViewer(); });
+  // No right-click "Save video as…" on any video (the lightbox's own
+  // Download menu item is removed via controlslist="nodownload").
+  document.addEventListener('contextmenu', (e) => { if (e.target.closest && e.target.closest('video')) e.preventDefault(); });
 
   // Screenshot lightbox for the client-screenshots collage — same overlay
   // pattern as the video one above, for reading the small text in a

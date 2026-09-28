@@ -713,7 +713,12 @@
     .tv-grid::-webkit-scrollbar{display:none;}
     .tv{scroll-snap-align:start;}
   }
-  .tv-player{position:relative; aspect-ratio:9/16; border-radius:16px; overflow:hidden; background:#111; border:1px solid rgba(17,17,17,.12); box-shadow:0 18px 40px -24px rgba(17,17,17,.55);}
+  /* Fixed for every card regardless of the source video's own ratio, so
+     a portrait and a landscape testimonial sit in the same size box and
+     line up in the grid — the video is cropped to fit here (object-fit:
+     cover below) purely for a consistent thumbnail; it always plays at
+     its real, uncropped ratio in the lightbox. */
+  .tv-player{position:relative; aspect-ratio:16/9; border-radius:16px; overflow:hidden; background:#111; border:1px solid rgba(17,17,17,.12); box-shadow:0 18px 40px -24px rgba(17,17,17,.55);}
   .tv-player video{position:absolute; inset:0; width:100%; height:100%; object-fit:cover; background:#111;}
   .tv-cover{position:absolute; inset:0; width:100%; padding:0; border:0; background:transparent; cursor:pointer; color:#fff; font:inherit;}
   .tv-big{position:absolute; top:50%; left:50%; width:34%; aspect-ratio:1.55; transform:translate(-50%,-50%); background:#0b0b0b; border-radius:10px; display:flex; align-items:center; justify-content:center; transition:transform .3s var(--ease), background .2s ease;}
@@ -1055,7 +1060,7 @@
       const who = h ? `<a href="https://instagram.com/${esc(h)}" target="_blank" rel="noopener">@${esc(h)}</a>` : esc(t.name);
       const poster = t.poster || cloudinaryVideoPoster(t.src);
       card.innerHTML = `
-        <div class="tv-player" style="aspect-ratio:${esc(t.ratio || '9/16')}">
+        <div class="tv-player">
           <video preload="none" playsinline poster="${esc(poster)}" src="${esc(t.src)}" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)}), opens larger with sound">
             <span class="tv-big">${tvPlaySvg}</span>

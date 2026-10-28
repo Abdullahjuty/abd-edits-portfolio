@@ -489,6 +489,8 @@
   .video-viewer{position:fixed; inset:0; z-index:1000; background:rgba(17,17,17,0.9); display:none; align-items:center; justify-content:center; padding:24px;}
   .video-viewer.open{display:flex;}
   .video-viewer video{max-height:88vh; max-width:min(90vw,700px); width:auto; height:auto; border-radius:var(--radius); background:#000;}
+  .video-viewer.loading::after{content:""; position:absolute; top:50%; left:50%; width:44px; height:44px; margin:-22px 0 0 -22px; border-radius:50%; border:4px solid rgba(255,255,255,0.25); border-top-color:var(--yellow); animation:vv-spin .8s linear infinite; pointer-events:none;}
+  @keyframes vv-spin{to{transform:rotate(360deg);}}
   .video-viewer button{position:absolute; top:18px; right:18px; width:40px; height:40px; border-radius:50%; border:0; background:var(--yellow); font-size:22px; font-weight:700; cursor:pointer; z-index:1;}
   .ba-home h2{font-family:'Montserrat','Poppins',sans-serif; font-weight:800; letter-spacing:0;}
 
@@ -927,9 +929,15 @@
   const videoViewerClose = videoViewer.querySelector('button');
   let lastVideoFocus = null;
 
-  function openVideoViewer(src, triggerEl) {
+  // Until the video has data, the poster gives the player its real shape
+  // (instead of an empty black strip at 0:00) and a spinner shows it's loading.
+  ['loadstart', 'waiting', 'stalled'].forEach((ev) => videoViewerVideo.addEventListener(ev, () => videoViewer.classList.add('loading')));
+  ['playing', 'canplay', 'error', 'emptied'].forEach((ev) => videoViewerVideo.addEventListener(ev, () => videoViewer.classList.remove('loading')));
+  function openVideoViewer(src, triggerEl, poster) {
     if (!src) return;
     lastVideoFocus = triggerEl || null;
+    if (poster) videoViewerVideo.poster = poster; else videoViewerVideo.removeAttribute('poster');
+    videoViewer.classList.add('loading');
     videoViewerVideo.src = src;
     videoViewerVideo.muted = false;
     videoViewer.classList.add('open');
@@ -986,7 +994,7 @@
     if (!video) return;
     // data-full = the with-sound, higher-quality copy; the tile itself
     // plays a small muted one.
-    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile);
+    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile, video.poster);
   });
 
   // Before/after video results are plain reel-style tiles now, so they
@@ -996,7 +1004,7 @@
     if (!tile) return;
     const video = tile.querySelector('video');
     if (!video) return;
-    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile);
+    openVideoViewer(video.dataset.full || video.currentSrc || video.src, tile, video.poster);
   });
 
   /* ---------------------------------------------------------------
@@ -1256,7 +1264,7 @@
       // shape, but nothing constrains the ratio once it's actually
       // playing, so a landscape testimonial plays landscape, not cropped
       // into the portrait tile shape.
-      cover.addEventListener('click', () => openVideoViewer(fullVideo(t.src), cover));
+      cover.addEventListener('click', () => openVideoViewer(fullVideo(t.src), cover, poster));
       scroller.appendChild(card);
     });
     observeVideos(scroller);

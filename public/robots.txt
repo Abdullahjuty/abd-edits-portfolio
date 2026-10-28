@@ -1,0 +1,23 @@
+# Search engines and AI assistants are welcome to read this site.
+User-agent: *
+Allow: /
+Disallow: /admin.html
+Disallow: /api/admin/
+
+# AI crawlers, listed explicitly so there is no doubt they are allowed.
+User-agent: GPTBot
+User-agent: OAI-SearchBot
+User-agent: ChatGPT-User
+User-agent: ClaudeBot
+User-agent: Claude-SearchBot
+User-agent: Claude-User
+User-agent: PerplexityBot
+User-agent: Perplexity-User
+User-agent: Google-Extended
+User-agent: Applebot-Extended
+User-agent: Bingbot
+Allow: /
+Disallow: /admin.html
+Disallow: /api/admin/
+
+Sitemap: https://hookbyabdullah.vercel.app/sitemap.xml

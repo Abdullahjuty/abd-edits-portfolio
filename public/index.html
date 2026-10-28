@@ -1198,7 +1198,9 @@
   function unobserveVideos(root) {
     if (lazyVideoIO) root.querySelectorAll('video[data-src]').forEach((v) => lazyVideoIO.unobserve(v));
   }
-  const tileVideoHtml = (src) => `<video data-src="${esc(tileVideo(src))}" data-full="${esc(fullVideo(src))}" poster="${esc(videoPoster(src))}" muted loop playsinline preload="none"></video>`;
+  // tile = an optional light preview copy (muted, first 15s, 540px) made
+  // for the autoplaying tiles; tapping a tile still opens the full video.
+  const tileVideoHtml = (src, tile) => `<video data-src="${esc(tile || tileVideo(src))}" data-full="${esc(fullVideo(src))}" poster="${esc(videoPoster(src))}" muted loop playsinline preload="none"></video>`;
 
   // scrollStep: +1 drifts content leftward (scrollLeft grows), -1 rightward.
   function setupMarquee(trackEl, itemHtmlList, cardWidthPx, gapPx, scrollStep) {
@@ -1232,7 +1234,7 @@
     const tiles = list.map((clip, i) => {
       const alt = i % 2 === 1 ? ' alt' : '';
       const ratio = esc(clip.ratio || '9/16');
-      return `<div class="tile${alt}" style="aspect-ratio:${ratio}">${tileVideoHtml(clip.src)}</div>`;
+      return `<div class="tile${alt}" style="aspect-ratio:${ratio}">${tileVideoHtml(clip.src, clip.tile)}</div>`;
     });
     // ".right" rows drift left-to-right (content moves right, so the
     // scroll position decreases); the others drift right-to-left.
@@ -1253,7 +1255,7 @@
       const poster = t.poster ? fitImage(t.poster, 720) : videoPoster(t.src, 720);
       card.innerHTML = `
         <div class="tv-player">
-          <video data-src="${esc(tileVideo(t.src, 720))}" poster="${esc(poster)}" muted loop playsinline preload="none" style="object-position:${esc(t.focus || 'center')}"></video>
+          <video data-src="${esc(t.tile || tileVideo(t.src, 720))}" poster="${esc(poster)}" muted loop playsinline preload="none" style="object-position:${esc(t.focus || 'center')}"></video>
           <button class="tv-cover" type="button" aria-label="Play ${esc(t.name)}'s video testimonial (${esc(t.duration)}) with sound"></button>
         </div>
         ${t.quote ? `<p class="tv-quote">"${esc(t.quote)}"</p>` : ''}
@@ -1304,7 +1306,7 @@
     // Same markup/classes as a reel tile, so this row looks and behaves
     // exactly like the reels rows (hover zoom, click-to-play lightbox,
     // same size).
-    const cardHtml = (c) => `<div class="tile" style="aspect-ratio:${esc(c.ratio || '9/16')}">${tileVideoHtml(c.video)}</div>`;
+    const cardHtml = (c) => `<div class="tile" style="aspect-ratio:${esc(c.ratio || '9/16')}">${tileVideoHtml(c.video, c.tile)}</div>`;
     const mobile = window.innerWidth <= 600;
     const cardW = mobile ? 135 : 180;
     const gap = mobile ? 8 : 12;

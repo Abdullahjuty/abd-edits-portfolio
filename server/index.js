@@ -206,8 +206,11 @@ function clearAuthCookie(res) {
 // button that appears to do nothing. publicId is the file's R2 key.
 async function destroyStoredAsset(publicId) {
   if (!publicId) return;
-  // A video's poster frame (<same name>.jpg) goes with it.
-  const keys = /\.(mp4|mov|webm|m4v)$/i.test(publicId) ? [publicId, publicId.replace(/\.[a-z0-9]+$/i, ".jpg")] : [publicId];
+  // A video's poster frame (<same name>.jpg) and tile preview copy
+  // (<same name>-tile.mp4, if one was made) go with it.
+  const keys = /\.(mp4|mov|webm|m4v)$/i.test(publicId)
+    ? [publicId, publicId.replace(/\.[a-z0-9]+$/i, ".jpg"), publicId.replace(/\.[a-z0-9]+$/i, "-tile.mp4")]
+    : [publicId];
   for (const key of keys) {
     try {
       const res = await r2.fetch(r2ObjectUrl(key), { method: "DELETE" });

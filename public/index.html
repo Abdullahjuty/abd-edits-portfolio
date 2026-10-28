@@ -1141,22 +1141,25 @@
   });
 
   // ---- Media delivery ---------------------------------------------------
-  // Uploads are stored as the original files (5-36MB 1080p videos, which
-  // added up to ~212MB on this page). The homepage never needs that — a
-  // tile is ~180px wide. Cloudinary builds a resized, compressed copy from
-  // a transformation in the URL (once; after that it's served from its
-  // CDN cache), so every media src below goes through cld().
+  // Media lives on Cloudflare R2, which serves files as-is: videos are
+  // stored already compressed for the web (720p), and each video has a
+  // still frame saved next to it with the same name and a .jpg extension
+  // (the admin panel creates it on upload), shown until the video plays.
+  // Older Cloudinary URLs still get Cloudinary's resizing transformations.
   function cld(src, transform) {
-    if (!src || src.indexOf('/upload/') === -1) return src || '';
+    if (!src || src.indexOf('res.cloudinary.com') === -1 || src.indexOf('/upload/') === -1) return src || '';
     return src.replace('/upload/', '/upload/' + transform + '/');
   }
+  const isCloudinary = (src) => !!src && src.indexOf('res.cloudinary.com') !== -1;
   const TILE_VIDEO_W = 540; // ~3x a 180px tile, sharp on retina phones
   // Tiles always play muted, so their copy drops the audio track too.
   const tileVideo = (src, w) => cld(src, `w_${w || TILE_VIDEO_W},q_auto,ac_none`);
   // The lightbox plays with sound, bigger: full width up to 1080, compressed.
   const fullVideo = (src) => cld(src, 'c_limit,w_1080,q_auto');
   // A still frame (1s in) as a .jpg, shown until the video itself plays.
-  const videoPoster = (src, w) => cld(src, `so_1,w_${w || TILE_VIDEO_W},q_auto`).replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg$1');
+  const videoPoster = (src, w) => isCloudinary(src)
+    ? cld(src, `so_1,w_${w || TILE_VIDEO_W},q_auto`).replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg$1')
+    : (src || '').replace(/\.[a-z0-9]+(\?.*)?$/i, '.jpg');
   const fitImage = (src, w) => cld(src, `c_limit,w_${w},q_auto,f_auto`);
 
   // Tile videos start on their poster frame and only download/play while

@@ -76,9 +76,9 @@ function uploadWithProgress(url, formData, method, onProgress, withCredentials) 
   });
 }
 
-// The browser uploads the file straight to Cloudinary (not through our
+// The browser uploads the file straight to R2 storage (not through our
 // server) — our backend only ever hands out a short-lived, folder-scoped
-// signature. This matters because serverless hosts cap a function's
+// upload URL. This matters because serverless hosts cap a function's
 // request body at a few MB, far too small for video, and it's also just
 // faster: one hop instead of two.
 // "Auto" ratio reads the file's real dimensions client-side (via a
@@ -122,28 +122,58 @@ function detectVideoDuration(file) {
   });
 }
 
-async function uploadToCloudinary(file, folder, resourceType, onProgress) {
-  const sig = await api("/api/admin/upload-signature", {
+async function uploadToStorage(file, folder, resourceType, onProgress) {
+  // The server checks the file against the storage cap and returns a
+  // presigned R2 URL for exactly this file's size.
+  const target = await api("/api/admin/upload-url", {
     method: "POST",
-    body: JSON.stringify({ folder, resourceType }),
+    body: JSON.stringify({ folder, resourceType, filename: file.name, size: file.size }),
     headers: { "Content-Type": "application/json" },
   });
-  const formData = new FormData();
-  formData.append("file", file);
-  formData.append("api_key", sig.apiKey);
-  formData.append("timestamp", sig.timestamp);
-  formData.append("signature", sig.signature);
-  formData.append("folder", sig.folder);
-  const result = await uploadWithProgress(
-    `https://api.cloudinary.com/v1_1/${sig.cloudName}/${resourceType}/upload`,
-    formData,
-    "POST",
-    onProgress,
-    false
-  );
-  // public_id is what lets us actually delete the file from Cloudinary
-  // later — the secure_url alone isn't enough for that.
-  return { url: result.secure_url, publicId: result.public_id, resourceType };
+  await uploadWithProgress(target.uploadUrl, file, "PUT", onProgress, false);
+  if (resourceType === "video") await uploadVideoPoster(file, folder, target.publicId);
+  // publicId is the file's R2 key, which is what lets the server delete
+  // the file later — the public url alone isn't enough for that.
+  return { url: target.url, publicId: target.publicId, resourceType };
+}
+
+// Grabs the frame 1s into the video as a .jpg (max 720px on the short
+// side) — the homepage shows it on each tile until the video plays.
+function captureVideoFrame(file) {
+  return new Promise((resolve, reject) => {
+    const video = document.createElement("video");
+    video.muted = true;
+    video.preload = "auto";
+    video.playsInline = true;
+    const done = (fn, arg) => { URL.revokeObjectURL(video.src); fn(arg); };
+    video.onloadedmetadata = () => { video.currentTime = Math.min(1, (video.duration || 0) / 2); };
+    video.onseeked = () => {
+      const scale = Math.min(1, 720 / Math.min(video.videoWidth, video.videoHeight));
+      const canvas = document.createElement("canvas");
+      canvas.width = Math.round(video.videoWidth * scale);
+      canvas.height = Math.round(video.videoHeight * scale);
+      canvas.getContext("2d").drawImage(video, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob((blob) => (blob ? done(resolve, blob) : done(reject, new Error("No frame"))), "image/jpeg", 0.8);
+    };
+    video.onerror = () => done(reject, new Error("Could not read video"));
+    video.src = URL.createObjectURL(file);
+  });
+}
+
+// Best-effort: without a poster the tile is just blank until it plays,
+// so a failure here never fails the video upload itself.
+async function uploadVideoPoster(file, folder, videoKey) {
+  try {
+    const blob = await captureVideoFrame(file);
+    const target = await api("/api/admin/upload-url", {
+      method: "POST",
+      body: JSON.stringify({ folder, resourceType: "image", filename: "poster.jpg", size: blob.size, posterFor: videoKey }),
+      headers: { "Content-Type": "application/json" },
+    });
+    await uploadWithProgress(target.uploadUrl, blob, "PUT", null, false);
+  } catch (err) {
+    console.warn("Poster frame upload failed:", err);
+  }
 }
 
 async function checkAuth() {
@@ -247,7 +277,7 @@ reelForm.addEventListener("submit", async (e) => {
   reelStatus.textContent = "Uploading… 0%";
   try {
     const ratio = await resolveRatio(ratioChoice, file);
-    const media = await uploadToCloudinary(file, "abd-edits/reels", "video", (pct) => {
+    const media = await uploadToStorage(file, "reels", "video", (pct) => {
       reelStatus.textContent = `Uploading… ${pct}%`;
     });
     await api("/api/admin/reels", {
@@ -295,14 +325,14 @@ vtForm.addEventListener("submit", async (e) => {
       detectVideoDuration(mediaFile),
     ]);
     vtStatus.textContent = "Uploading video… 0%";
-    const media = await uploadToCloudinary(mediaFile, "abd-edits/video-testimonials", "video", (pct) => {
+    const media = await uploadToStorage(mediaFile, "video-testimonials", "video", (pct) => {
       vtStatus.textContent = `Uploading video… ${pct}%`;
     });
     let poster = "";
     let posterPublicId = "";
     if (posterFile && posterFile.size > 0) {
       vtStatus.textContent = "Uploading poster… 0%";
-      const posterMedia = await uploadToCloudinary(posterFile, "abd-edits/video-testimonials", "image", (pct) => {
+      const posterMedia = await uploadToStorage(posterFile, "video-testimonials", "image", (pct) => {
         vtStatus.textContent = `Uploading poster… ${pct}%`;
       });
       poster = posterMedia.url;
@@ -361,7 +391,7 @@ baForm.addEventListener("submit", async (e) => {
   baStatus.textContent = "Uploading… 0%";
   try {
     const ratio = await resolveRatio(ratioChoice, file);
-    const media = await uploadToCloudinary(file, "abd-edits/before-after", "video", (pct) => {
+    const media = await uploadToStorage(file, "before-after", "video", (pct) => {
       baStatus.textContent = `Uploading… ${pct}%`;
     });
     await api("/api/admin/before-after", {
@@ -402,7 +432,7 @@ csForm.addEventListener("submit", async (e) => {
   btn.disabled = true;
   csStatus.textContent = "Uploading… 0%";
   try {
-    const media = await uploadToCloudinary(file, "abd-edits/client-screenshots", "image", (pct) => {
+    const media = await uploadToStorage(file, "client-screenshots", "image", (pct) => {
       csStatus.textContent = `Uploading… ${pct}%`;
     });
     await api("/api/admin/client-screenshots", {
@@ -455,7 +485,7 @@ function renderProcessSlots(process) {
       if (!fileInput.files[0]) { status.textContent = "Choose a file first."; return; }
       status.textContent = "Uploading… 0%";
       try {
-        const media = await uploadToCloudinary(fileInput.files[0], "abd-edits/process", "image", (pct) => {
+        const media = await uploadToStorage(fileInput.files[0], "process", "image", (pct) => {
           status.textContent = `Uploading… ${pct}%`;
         });
         await api(`/api/admin/process/${slot}`, {

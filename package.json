@@ -9,8 +9,8 @@
     "create-admin": "node server/create-admin.js"
   },
   "dependencies": {
+    "aws4fetch": "^1.0.20",
     "bcryptjs": "^2.4.3",
-    "cloudinary": "^2.11.0",
     "cookie": "^0.7.2",
     "express": "^4.19.2",
     "firebase-admin": "^14.4.0",

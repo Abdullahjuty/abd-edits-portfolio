@@ -7,7 +7,7 @@ const jwt = require("jsonwebtoken");
 const cookie = require("cookie");
 const admin = require("firebase-admin");
 const { getFirestore } = require("firebase-admin/firestore");
-const cloudinary = require("cloudinary").v2;
+const { AwsClient } = require("aws4fetch");
 
 const ROOT = path.join(__dirname, "..");
 const DATA_DIR = path.join(__dirname, "data");
@@ -88,18 +88,54 @@ async function writeContent(data) {
 }
 
 // ---------------------------------------------------------------------
-// Cloudinary: the browser uploads files directly here (see the
-// /api/admin/upload-signature route below) instead of relaying them
-// through this server. Two reasons: serverless hosts like Vercel cap a
-// function's request body at ~4.5MB (far too small for video), and even
-// without that limit, relaying bytes through our server is a pointless
-// extra hop when Cloudinary can take them directly from the browser.
+// Cloudflare R2: all videos and images live in one R2 bucket and are
+// served from its public URL. R2 charges nothing for bandwidth, so a
+// popular reel can't use up a monthly quota and take the media offline
+// (which is what happened on Cloudinary's free plan).
+// The browser uploads files directly to R2 with a short-lived presigned
+// URL (see the /api/admin/upload-url route below) instead of relaying
+// them through this server: serverless hosts like Vercel cap a
+// function's request body at ~4.5MB, far too small for video.
 // ---------------------------------------------------------------------
-cloudinary.config({
-  cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
-  api_key: process.env.CLOUDINARY_API_KEY,
-  api_secret: process.env.CLOUDINARY_API_SECRET,
+const R2_BUCKET = process.env.R2_BUCKET || "abd-edits";
+const R2_PUBLIC_URL = (process.env.R2_PUBLIC_URL || "").replace(/\/+$/, "");
+const R2_ENDPOINT = `https://${process.env.R2_ACCOUNT_ID}.r2.cloudflarestorage.com/${R2_BUCKET}`;
+const r2 = new AwsClient({
+  accessKeyId: process.env.R2_ACCESS_KEY_ID || "",
+  secretAccessKey: process.env.R2_SECRET_ACCESS_KEY || "",
+  service: "s3",
+  region: "auto",
 });
+
+function r2ObjectUrl(key) {
+  return `${R2_ENDPOINT}/${key.split("/").map(encodeURIComponent).join("/")}`;
+}
+
+// Hard cap on everything stored in the bucket, kept well under R2's 10GB
+// free tier so storage never costs money. Every upload is checked against it.
+const STORAGE_LIMIT_BYTES = 6 * 1024 ** 3;
+const MAX_FILE_BYTES = 500 * 1024 ** 2;
+
+// Total size of every object in the bucket (ListObjectsV2, 1000 keys a page).
+async function r2BucketBytes() {
+  let total = 0;
+  let token = "";
+  do {
+    const url = new URL(R2_ENDPOINT);
+    url.searchParams.set("list-type", "2");
+    if (token) url.searchParams.set("continuation-token", token);
+    const res = await r2.fetch(url);
+    if (!res.ok) throw new Error(`Could not check storage usage (HTTP ${res.status})`);
+    const xml = await res.text();
+    for (const m of xml.matchAll(/<Size>(\d+)<\/Size>/g)) total += Number(m[1]);
+    token = /<IsTruncated>true<\/IsTruncated>/.test(xml) ? /<NextContinuationToken>([^<]+)</.exec(xml)?.[1] || "" : "";
+  } while (token);
+  return total;
+}
+
+function formatGB(bytes) {
+  return `${(bytes / 1024 ** 3).toFixed(2)} GB`;
+}
 
 // ---------------------------------------------------------------------
 const app = express();
@@ -164,16 +200,21 @@ function clearAuthCookie(res) {
   );
 }
 
-// Best-effort: removes the actual file from Cloudinary storage. Failures
-// here are logged but never block the delete from completing in
-// Firestore — a stray orphaned file in Cloudinary is a much smaller
-// problem than a delete button that appears to do nothing.
-async function destroyCloudinaryAsset(publicId, resourceType) {
+// Best-effort: removes the actual file from R2 storage. Failures here are
+// logged but never block the delete from completing in Firestore — a
+// stray orphaned file in R2 is a much smaller problem than a delete
+// button that appears to do nothing. publicId is the file's R2 key.
+async function destroyStoredAsset(publicId) {
   if (!publicId) return;
-  try {
-    await cloudinary.uploader.destroy(publicId, { resource_type: resourceType || "image", invalidate: true });
-  } catch (err) {
-    console.error(`Failed to delete Cloudinary asset ${publicId}:`, err.message);
+  // A video's poster frame (<same name>.jpg) goes with it.
+  const keys = /\.(mp4|mov|webm|m4v)$/i.test(publicId) ? [publicId, publicId.replace(/\.[a-z0-9]+$/i, ".jpg")] : [publicId];
+  for (const key of keys) {
+    try {
+      const res = await r2.fetch(r2ObjectUrl(key), { method: "DELETE" });
+      if (!res.ok && res.status !== 404) throw new Error(`HTTP ${res.status}`);
+    } catch (err) {
+      console.error(`Failed to delete R2 object ${key}:`, err.message);
+    }
   }
 }
 
@@ -227,29 +268,48 @@ app.get("/api/admin/me", (req, res) => {
   }
 });
 
-// Gives the browser everything it needs to upload one file straight to
-// Cloudinary. The signature is time-limited (the timestamp is baked into
-// it) and folder/resource_type-scoped, so it can't be reused to upload
-// somewhere else or after it expires.
+// Gives the browser a presigned URL to PUT one file straight into R2.
+// The URL is valid for 15 minutes and for exactly one new key, so it
+// can't be reused to overwrite other files or upload after it expires.
+// The file's size is signed into the URL (Content-Length), so the browser
+// can't upload a bigger file than the one checked against the 6GB cap.
 app.post(
-  "/api/admin/upload-signature",
+  "/api/admin/upload-url",
   requireAuth,
   asyncRoute(async (req, res) => {
-    const { folder, resourceType } = req.body || {};
-    if (!folder || !["image", "video"].includes(resourceType)) {
+    const { folder, resourceType, filename, size } = req.body || {};
+    if (!/^[a-z0-9-]+(\/[a-z0-9-]+)*$/.test(folder || "") || !["image", "video"].includes(resourceType)) {
       return res.status(400).json({ error: "folder and a valid resourceType are required" });
     }
-    const timestamp = Math.round(Date.now() / 1000);
-    const paramsToSign = { folder, timestamp };
-    const signature = cloudinary.utils.api_sign_request(paramsToSign, process.env.CLOUDINARY_API_SECRET);
-    res.json({
-      signature,
-      timestamp,
-      apiKey: process.env.CLOUDINARY_API_KEY,
-      cloudName: process.env.CLOUDINARY_CLOUD_NAME,
-      folder,
-      resourceType,
+    if (!Number.isInteger(size) || size <= 0) return res.status(400).json({ error: "File size is required" });
+    if (size > MAX_FILE_BYTES) {
+      return res.status(400).json({
+        error: `This file is ${(size / 1024 ** 2).toFixed(0)} MB — the limit is 500 MB per file. Export a smaller version (720p or 1080p) and try again.`,
+      });
+    }
+    const used = await r2BucketBytes();
+    if (used + size > STORAGE_LIMIT_BYTES) {
+      return res.status(400).json({
+        error: `Storage is full: ${formatGB(used)} of ${formatGB(STORAGE_LIMIT_BYTES)} used. Delete some old videos first.`,
+      });
+    }
+    const ext = (/\.([a-z0-9]{1,5})$/i.exec(filename || "")?.[1] || (resourceType === "video" ? "mp4" : "jpg")).toLowerCase();
+    let key = `${folder}/${crypto.randomBytes(10).toString("hex")}.${ext}`;
+    // A video's poster frame goes next to it as <same name>.jpg, which is
+    // where the homepage looks for it.
+    const { posterFor } = req.body || {};
+    if (posterFor) {
+      if (resourceType !== "image" || !new RegExp(`^${folder}/[a-f0-9]{20}\\.[a-z0-9]{1,5}$`).test(posterFor)) {
+        return res.status(400).json({ error: "Invalid poster target" });
+      }
+      key = posterFor.replace(/\.[a-z0-9]+$/, ".jpg");
+    }
+    const url = new URL(r2ObjectUrl(key));
+    url.searchParams.set("X-Amz-Expires", "900");
+    const signed = await r2.sign(new Request(url, { method: "PUT", headers: { "Content-Length": String(size) } }), {
+      aws: { signQuery: true, allHeaders: true },
     });
+    res.json({ uploadUrl: signed.url, url: `${R2_PUBLIC_URL}/${key}`, publicId: key });
   })
 );
 
@@ -269,8 +329,8 @@ app.get(
 
 // ---------- admin content management ----------
 // Every route below receives only small JSON metadata — the actual video/
-// image bytes already went straight from the browser to Cloudinary via the
-// signature route above, so none of this ever touches a request body size
+// image bytes already went straight from the browser to R2 via the
+// upload-url route above, so none of this ever touches a request body size
 // limit.
 
 // Reels (the 3 scrolling proof rows)
@@ -299,7 +359,7 @@ app.delete(
     const reel = content.reels[row].find((r) => r.id === id);
     content.reels[row] = content.reels[row].filter((r) => r.id !== id);
     await writeContent(content);
-    if (reel) await destroyCloudinaryAsset(reel.publicId, "video");
+    if (reel) await destroyStoredAsset(reel.publicId);
     res.json({ ok: true });
   })
 );
@@ -342,8 +402,8 @@ app.delete(
     content.videoTestimonials = content.videoTestimonials.filter((t) => t.id !== req.params.id);
     await writeContent(content);
     if (testimonial) {
-      await destroyCloudinaryAsset(testimonial.publicId, "video");
-      await destroyCloudinaryAsset(testimonial.posterPublicId, "image");
+      await destroyStoredAsset(testimonial.publicId);
+      await destroyStoredAsset(testimonial.posterPublicId);
     }
     res.json({ ok: true });
   })
@@ -379,7 +439,7 @@ app.delete(
     const entry = content.beforeAfter.find((b) => b.id === req.params.id);
     content.beforeAfter = content.beforeAfter.filter((b) => b.id !== req.params.id);
     await writeContent(content);
-    if (entry) await destroyCloudinaryAsset(entry.videoPublicId, "video");
+    if (entry) await destroyStoredAsset(entry.videoPublicId);
     res.json({ ok: true });
   })
 );
@@ -410,7 +470,7 @@ app.delete(
     const shot = list.find((s) => s.id === req.params.id);
     content.clientScreenshots = list.filter((s) => s.id !== req.params.id);
     await writeContent(content);
-    if (shot) await destroyCloudinaryAsset(shot.publicId, "image");
+    if (shot) await destroyStoredAsset(shot.publicId);
     res.json({ ok: true });
   })
 );
@@ -430,7 +490,7 @@ app.post(
     content.process[slot] = url;
     content.processPublicIds = { ...content.processPublicIds, [slot]: publicId || "" };
     await writeContent(content);
-    if (previousPublicId) await destroyCloudinaryAsset(previousPublicId, "image");
+    if (previousPublicId) await destroyStoredAsset(previousPublicId);
     res.json({ ok: true, slot, url });
   })
 );
@@ -446,7 +506,7 @@ app.delete(
     content.process[slot] = "";
     if (content.processPublicIds) content.processPublicIds[slot] = "";
     await writeContent(content);
-    if (publicId) await destroyCloudinaryAsset(publicId, "image");
+    if (publicId) await destroyStoredAsset(publicId);
     res.json({ ok: true });
   })
 );

@@ -7,3 +7,6 @@ server/data/admin.json
 .env
 *firebase-adminsdk*.json
 .vercel
+vercel-token.txt
+web-videos/
+r2-keys.txt
